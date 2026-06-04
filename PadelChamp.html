@@ -143,8 +143,15 @@ async function _initAuth(){
 }
 
 const SK='padelchamp_v1';
+const SB_URL='https://yldwlgeabmwdjefeerpr.supabase.co';
+const SB_KEY='sb_publishable_mrL1kVUYLjoiyKJMtJ20KA_ZRelO6BC';
+const SB_HDR={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+
+const _sbLoad=async()=>{try{const r=await fetch(SB_URL+'/rest/v1/app_data?id=eq.1&select=data',{headers:SB_HDR});const rows=await r.json();return(rows&&rows.length>0)?rows[0].data:null;}catch(e){console.warn('Supabase load failed',e);return null;}};
+const _sbSave=(payload)=>{fetch(SB_URL+'/rest/v1/app_data?id=eq.1',{method:'PATCH',headers:{...SB_HDR,'Prefer':'return=minimal'},body:JSON.stringify({data:payload,updated_at:new Date().toISOString()})}).catch(e=>console.warn('Supabase save failed',e));};
+
 const loadDB=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
-const saveDB=()=>{try{localStorage.setItem(SK,JSON.stringify({players:S.players,seasons:S.seasons,events:S.events,evP:S.evP,teams:S.teams,matches:S.matches,byeMap:S.byeMap,settings:S.settings}));}catch(e){console.warn('Save failed',e);}};
+const saveDB=()=>{const payload={players:S.players,seasons:S.seasons,events:S.events,evP:S.evP,teams:S.teams,matches:S.matches,byeMap:S.byeMap,settings:S.settings};try{localStorage.setItem(SK,JSON.stringify(payload));}catch(e){console.warn('localStorage save failed',e);}if(IS_PLAYER)_sbSave(payload);};
 
 // ─── State ────────────────────────────────────────────────────
 const saved=loadDB();
@@ -991,6 +998,20 @@ applyThemeCss();
   await _initAuth();
   if(!IS_PLAYER){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}
   else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}
+  // Load from Supabase (authoritative) — overrides localStorage if data exists
+  const sbData=await _sbLoad();
+  if(sbData&&sbData.players){
+    if(sbData.players)S.players=sbData.players;
+    if(sbData.seasons)S.seasons=sbData.seasons;
+    if(sbData.events)S.events=sbData.events;
+    if(sbData.evP)S.evP=sbData.evP;
+    if(sbData.teams)S.teams=sbData.teams;
+    if(sbData.matches)S.matches=sbData.matches;
+    if(sbData.byeMap)S.byeMap=sbData.byeMap;
+    if(sbData.settings)S.settings=sbData.settings;
+    // sync to localStorage
+    try{localStorage.setItem(SK,JSON.stringify(sbData));}catch(e){}
+  }
   render();
 })();
 </script>
