@@ -885,7 +885,7 @@ const renderSettings=()=>{
     row.appendChild(minusBtn);row.appendChild(num);row.appendChild(plusBtn);row.appendChild(span('Punkte',{fontSize:'13px',color:C.muted}));w.appendChild(row);return w;
   };
   pc.appendChild(mkStepper('PUNKTE PRO SIEG','ptsWin',1,10));const hr=document.createElement('hr');hr.style.margin='4px 0 14px';pc.appendChild(hr);pc.appendChild(mkStepper('PUNKTE PRO NIEDERLAGE','ptsLoss',0,9));
-  const info=div('',{marginTop:'18px',background:C.accentBg,borderRadius:'12px',padding:'12px 14px'});info.appendChild(span('Aktuelles System',{fontSize:'12px',fontWeight:'600',color:C.accent,display:'block',marginBottom:'4px'}));info.appendChild(span('Sieg = '+S.settings.ptsWin+' Pkt · Niederlage = '+S.settings.ptsLoss+' Pkt',{fontSize:'13px',color:C.text}));pc.appendChild(info);s.appendChild(pc);
+  const info=div('',{marginTop:'18px',background:C.accentBg,borderRadius:'12px',padding:'12px 14px'});info.appendChild(span('Aktuelles System',{fontSize:'12px',fontWeight:'600',color:C.accent,display:'block',marginBottom:'4px'}));info.appendChild(span('Sieg = '+S.settings.ptsWin+' Pkt · Niederlage = '+S.settings.ptsLoss+' Pkt',{fontSize:'13px',color:C.text}));pc.appendChild(info);if(IS_ADMIN)s.appendChild(pc);
 
   // Seasons
   const sc=div('card',{marginBottom:'16px'});
@@ -919,7 +919,7 @@ const renderSettings=()=>{
     if(!ss.isActive&&IS_ADMIN){const ab=el('button',{class:'press',style:{background:C.accent,border:'none',borderRadius:'8px',padding:'6px 12px',color:'#fff',fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Aktivieren');ab.onclick=()=>mut(()=>S.seasons.forEach(x=>x.isActive=x.id===ss.id));sr.appendChild(ab);}
     slc.appendChild(sr);
   });
-  sc.appendChild(slc);s.appendChild(sc);
+  sc.appendChild(slc);if(IS_ADMIN)s.appendChild(sc);
 
   // Reset
   const rc=div('card',{marginTop:'16px',border:'1px solid '+C.red+'30'});
