@@ -867,7 +867,7 @@ const renderSettings=()=>{
   };
   trow.appendChild(mkThemeBtn('light','☀️','Hell','Weiss & klar'));
   trow.appendChild(mkThemeBtn('dark','🌙','Dunkel','Schont die Augen'));
-  tc.appendChild(trow);s.appendChild(tc);
+  tc.appendChild(trow);if(IS_ADMIN)s.appendChild(tc);
   // Points system
   const pc=div('card',{marginBottom:'16px'});
   pc.appendChild(span('Punktesystem',{fontSize:'14px',fontWeight:'700',color:C.text,display:'block',marginBottom:'4px'}));
@@ -914,7 +914,7 @@ const renderSettings=()=>{
     const snh=div('',{display:'flex',alignItems:'center',gap:'6px'});snh.appendChild(span(ss.name,{fontSize:'14px',fontWeight:'700',color:ss.isActive?C.green:C.text}));if(ss.isActive){const ab=div('badge',{background:C.greenBg,border:'1px solid '+C.green+'40'});ab.appendChild(span('AKTIV',{color:C.green,fontSize:'10px',fontWeight:'700'}));snh.appendChild(ab);}
     si.appendChild(snh);si.appendChild(span((ss.startDate?ss.startDate+' – '+ss.endDate:'')+(evCount>0?' · '+evCount+' Events':'')+(mCount>0?' · '+mCount+' Matches':''),{fontSize:'11px',color:C.sub,display:'block',marginTop:'2px'}));
     sr.appendChild(si);
-    if(!ss.isActive){const ab=el('button',{class:'press',style:{background:C.accent,border:'none',borderRadius:'8px',padding:'6px 12px',color:'#fff',fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Aktivieren');ab.onclick=()=>mut(()=>S.seasons.forEach(x=>x.isActive=x.id===ss.id));sr.appendChild(ab);}
+    if(!ss.isActive&&IS_ADMIN){const ab=el('button',{class:'press',style:{background:C.accent,border:'none',borderRadius:'8px',padding:'6px 12px',color:'#fff',fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Aktivieren');ab.onclick=()=>mut(()=>S.seasons.forEach(x=>x.isActive=x.id===ss.id));sr.appendChild(ab);}
     slc.appendChild(sr);
   });
   sc.appendChild(slc);s.appendChild(sc);
@@ -927,7 +927,7 @@ const renderSettings=()=>{
   db1.onclick=()=>{if(confirm('Alle Spieldaten löschen? Spieler bleiben erhalten.'))mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};});};
   const db2=el('button',{class:'press btn-red',style:{width:'100%',padding:'11px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer'}},'Alles löschen & neu starten');
   db2.onclick=()=>{if(confirm('ALLES löschen inkl. Spieler und Einstellungen? Kann nicht rückgängig gemacht werden.')){localStorage.removeItem(SK);location.reload();}};
-  rc.appendChild(db1);rc.appendChild(db2);s.appendChild(rc);
+  rc.appendChild(db1);rc.appendChild(db2);if(IS_ADMIN)s.appendChild(rc);
   return s;
 };
 
