@@ -1054,19 +1054,17 @@ applyThemeCss();
   await _initAuth();
   if(!IS_PLAYER){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}
   else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}
-  // Load from Supabase (authoritative) — overrides localStorage if data exists
+  // Load from Supabase (authoritative)
   const sbData=await _sbLoad();
-  if(sbData&&sbData.players){
-    if(sbData.players)S.players=sbData.players;
-    if(sbData.seasons)S.seasons=sbData.seasons;
-    if(sbData.events)S.events=sbData.events;
-    if(sbData.evP)S.evP=sbData.evP;
-    if(sbData.teams)S.teams=sbData.teams;
-    if(sbData.matches)S.matches=sbData.matches;
-    if(sbData.byeMap)S.byeMap=sbData.byeMap;
-    if(sbData.settings)S.settings=sbData.settings;
-    // sync to localStorage
+  if(sbData&&(sbData.players.length>0||sbData.seasons.length>0)){
+    // Supabase has data — use it as source of truth
+    S.players=sbData.players;S.seasons=sbData.seasons;S.events=sbData.events;
+    S.evP=sbData.evP;S.teams=sbData.teams;S.matches=sbData.matches;
+    S.byeMap=sbData.byeMap;S.settings=sbData.settings;
     try{localStorage.setItem(SK,JSON.stringify(sbData));}catch(e){}
+  } else if(sbData&&IS_PLAYER){
+    // Supabase empty — migrate localStorage data to Supabase
+    _sbSave({players:S.players,seasons:S.seasons,events:S.events,evP:S.evP,teams:S.teams,matches:S.matches,byeMap:S.byeMap,settings:S.settings});
   }
   render();
 })();
