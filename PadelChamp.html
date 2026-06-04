@@ -1056,7 +1056,7 @@ applyThemeCss();
   else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}
   // Load from Supabase (authoritative)
   const sbData=await _sbLoad();
-  if(sbData&&(sbData.players.length>0||sbData.seasons.length>0)){
+  if(sbData&&sbData.seasons&&sbData.seasons.length>0){
     // Supabase has data — use it as source of truth
     S.players=sbData.players;S.seasons=sbData.seasons;S.events=sbData.events;
     S.evP=sbData.evP;S.teams=sbData.teams;S.matches=sbData.matches;
