@@ -72,7 +72,7 @@ hr{border:none;border-top:1px solid #F3F4F6;margin:0;}
 </head>
 <body>
 <div id="root">
-  <div id="readonly-banner" style="display:none;background:#F59E0B;color:#fff;text-align:center;padding:6px 12px;font-size:12px;font-weight:600;letter-spacing:.3px;">🔒 Read-only — Kein Admin-Zugang</div>
+  <div id="readonly-banner" style="display:none;background:#F59E0B;color:#fff;text-align:center;padding:6px 12px;font-size:12px;font-weight:600;letter-spacing:.3px;">🔒 Nur lesen — Kein Zugang</div>
   <div id="screen" class="screen fi"></div>
   <nav id="nav">
     <button class="navbtn press" data-tab="0" onclick="setTab(0)">
@@ -132,8 +132,10 @@ const txt=t=>document.createTextNode(t);
 // ─── Storage ──────────────────────────────────────────────────
 // ─── Admin Key ────────────────────────────────────────────────
 const ADMIN_KEY='PC111412';
+const PLAYER_KEY='PCPlayer26';
 const _urlKey=new URLSearchParams(window.location.search).get('key');
 const IS_ADMIN=_urlKey===ADMIN_KEY;
+const IS_PLAYER=IS_ADMIN||_urlKey===PLAYER_KEY;
 
 const SK='padelchamp_v1';
 const loadDB=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
@@ -193,7 +195,7 @@ const calcStandings=()=>{
 };
 
 // ─── Actions ─────────────────────────────────────────────────
-const mut=(fn)=>{if(!IS_ADMIN){alert('🔒 Read-only. Admin-URL benötigt.');return;}fn();saveDB();render();};
+const mut=(fn)=>{if(!IS_PLAYER){alert('🔒 Read-only. Spieler- oder Admin-URL benötigt.');return;}fn();saveDB();render();};
 
 const genTeams=(eid,rnd)=>{
   const ps=getEP(eid);if(ps.length<2)return;
@@ -561,7 +563,7 @@ const renderDetail=()=>{
     card.appendChild(span('Bereit zum Starten',{fontSize:'15px',fontWeight:'700',color:C.text,display:'block',marginBottom:'4px'}));
     card.appendChild(span(ep.length+' Spieler · '+(ep.length%2!==0?'1 Bye wird vergeben':'Keine Byes'),{fontSize:'13px',color:C.sub,display:'block',marginBottom:'14px'}));
     const btnrow=div('',{display:'flex',gap:'8px',justifyContent:'center'});
-    const rb=el('button',{class:'press btn-primary admin-only'},'🔀 Zufällig');rb.onclick=()=>genTeams(ev.id,1);
+    const rb=el('button',{class:'press btn-primary'},'🔀 Zufällig');rb.onclick=()=>genTeams(ev.id,1);
     const mb=el('button',{class:'press btn-ghost'},'✏️ Manuell');mb.onclick=()=>openTeamBuilder(ev.id,1);
     btnrow.appendChild(rb);btnrow.appendChild(mb);card.appendChild(btnrow);s.appendChild(card);
   }
@@ -586,7 +588,7 @@ const renderDetail=()=>{
     rh.appendChild(rl);
     if(isAct&&rm.length===0&&rt.length>0&&!locked){
       const rbts=div('',{display:'flex',gap:'6px'});
-      const zb=el('button',{class:'press admin-only',style:{display:'flex',alignItems:'center',gap:'4px',background:C.bg,border:'1px solid '+C.border,borderRadius:'8px',padding:'5px 10px',color:C.sub,fontSize:'12px',fontWeight:'500',cursor:'pointer'}},'🔀 Zufall');zb.onclick=()=>genTeams(ev.id,rnd);
+      const zb=el('button',{class:'press',style:{display:'flex',alignItems:'center',gap:'4px',background:C.bg,border:'1px solid '+C.border,borderRadius:'8px',padding:'5px 10px',color:C.sub,fontSize:'12px',fontWeight:'500',cursor:'pointer'}},'🔀 Zufall');zb.onclick=()=>genTeams(ev.id,rnd);
       const mb=el('button',{class:'press',style:{display:'flex',alignItems:'center',gap:'4px',background:C.bg,border:'1px solid '+C.border,borderRadius:'8px',padding:'5px 10px',color:C.sub,fontSize:'12px',fontWeight:'500',cursor:'pointer'}},'✏️ Manuell');mb.onclick=()=>openTeamBuilder(ev.id,rnd);
       rbts.appendChild(zb);rbts.appendChild(mb);rh.appendChild(rbts);
     }
@@ -610,7 +612,7 @@ const renderDetail=()=>{
     if(isAct&&rt.length>=2&&rm.length===0&&!locked){const gb=el('button',{class:'press',style:{width:'100%',padding:'11px',borderRadius:'12px',border:'none',background:C.green,color:'#fff',fontSize:'14px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',marginBottom:'4px'}},'⚡ Spielplan für Runde '+rnd+' generieren');gb.onclick=()=>genMatches(ev.id,rnd);rndSec.appendChild(gb);}
 
     // Matches
-    rm.forEach(m=>{const mc=mkMatchCard(m,isAct&&!locked&&IS_ADMIN?()=>openScoreModal(m):null);if(mc)rndSec.appendChild(mc);});
+    rm.forEach(m=>{const mc=mkMatchCard(m,isAct&&!locked&&IS_PLAYER?()=>openScoreModal(m):null);if(mc)rndSec.appendChild(mc);});
 
     // Round complete → new round
     if(rdone&&rnd===cr&&!locked){
@@ -619,7 +621,7 @@ const renderDetail=()=>{
       rc2.appendChild(span('Runde '+rnd+' abgeschlossen!',{fontSize:'15px',fontWeight:'700',color:C.green,display:'block',marginBottom:'4px'}));
       rc2.appendChild(span('Alle '+rm.length+' Matches gespielt.',{fontSize:'13px',color:C.sub,display:'block',marginBottom:'14px'}));
       const nb=div('',{display:'flex',gap:'8px',justifyContent:'center'});
-      const zb2=el('button',{class:'press admin-only',style:{background:C.accent,border:'none',borderRadius:'11px',padding:'11px 18px',color:'#fff',fontSize:'14px',fontWeight:'700',cursor:'pointer'}},'🔀 Zufällig');zb2.onclick=()=>genTeams(ev.id,rnd+1);
+      const zb2=el('button',{class:'press',style:{background:C.accent,border:'none',borderRadius:'11px',padding:'11px 18px',color:'#fff',fontSize:'14px',fontWeight:'700',cursor:'pointer'}},'🔀 Zufällig');zb2.onclick=()=>genTeams(ev.id,rnd+1);
       const mb2=el('button',{class:'press',style:{background:C.surface,border:'1.5px solid '+C.accent,borderRadius:'11px',padding:'11px 18px',color:C.accent,fontSize:'14px',fontWeight:'700',cursor:'pointer'}},'✏️ Manuell');mb2.onclick=()=>openTeamBuilder(ev.id,rnd+1);
       nb.appendChild(zb2);nb.appendChild(mb2);rc2.appendChild(nb);rndSec.appendChild(rc2);
     }
@@ -640,7 +642,7 @@ const renderHome=()=>{
   const latest=evs[0];
   if(!latest){
     const empty=div('',{textAlign:'center',paddingTop:'40px'});empty.appendChild(span('🎾',{fontSize:'52px',display:'block',marginBottom:'14px'}));empty.appendChild(span('Noch kein Event',{fontSize:'15px',fontWeight:'500',color:C.sub,display:'block',marginBottom:'6px'}));empty.appendChild(span('Erstelle deinen ersten Padel Day.',{fontSize:'13px',color:C.muted,display:'block',marginBottom:'24px'}));
-    const nb=el('button',{class:'press btn-primary admin-only',style:{margin:'0 auto',display:'flex'}},'+ Neues Event');nb.onclick=()=>{S.tab=2;render();setTimeout(()=>document.getElementById('new-ev-btn')?.click(),100);};empty.appendChild(nb);s.appendChild(empty);return s;
+    const nb=el('button',{class:'press btn-primary',style:{margin:'0 auto',display:'flex'}},'+ Neues Event');nb.onclick=()=>{S.tab=2;render();setTimeout(()=>document.getElementById('new-ev-btn')?.click(),100);};empty.appendChild(nb);s.appendChild(empty);return s;
   }
   // Latest event card
   const lc=div('card',{marginBottom:'16px',padding:'0',overflow:'hidden'});
@@ -650,7 +652,7 @@ const renderHome=()=>{
   const lcb=div('',{padding:'14px 14px 10px'});
   lcb.appendChild(span(latest.name,{fontSize:'17px',fontWeight:'700',color:C.text,display:'block',marginBottom:'10px'}));
   const cr=curRnd(latest.id);
-  matByRnd(latest.id,cr).slice(0,3).forEach(m=>{const mc=mkMatchCard(m,IS_ADMIN?()=>{S.selEv=latest.id;S.tab=2;render();setTimeout(()=>openScoreModal(m),100);}:null);if(mc)lcb.appendChild(mc);});
+  matByRnd(latest.id,cr).slice(0,3).forEach(m=>{const mc=mkMatchCard(m,IS_PLAYER?()=>{S.selEv=latest.id;S.tab=2;render();setTimeout(()=>openScoreModal(m),100);}:null);if(mc)lcb.appendChild(mc);});
   if(getMat(latest.id).length===0)lcb.appendChild(span('Noch kein Spielplan.',{fontSize:'13px',color:C.muted,display:'block'}));
   const ob=el('button',{class:'press',style:{width:'100%',marginTop:'10px',padding:'9px',borderRadius:'9px',border:'1px solid '+C.border,background:C.bg,color:C.accent,fontSize:'13px',fontWeight:'600',cursor:'pointer'}},'Vollständig öffnen →');ob.onclick=()=>{S.selEv=latest.id;S.tab=2;render();};lcb.appendChild(ob);lc.appendChild(lcb);s.appendChild(lc);
   // Top 3
@@ -778,7 +780,7 @@ const renderEvents=()=>{
   const as=activeSeason();
   const top=div('',{paddingTop:'24px',paddingBottom:'18px',display:'flex',justifyContent:'space-between',alignItems:'flex-end'});
   const tl=div('');tl.appendChild(span(as.name,{fontSize:'12px',fontWeight:'600',color:C.muted,letterSpacing:'.5px',display:'block',marginBottom:'4px'}));tl.appendChild(span('Events 📅',{fontSize:'28px',fontWeight:'800',color:C.text,display:'block'}));top.appendChild(tl);
-  const newBtn=el('button',{id:'new-ev-btn',class:'press btn-primary btn-sm admin-only'},'+ Neu');
+  const newBtn=el('button',{id:'new-ev-btn',class:'press btn-primary btn-sm'},'+ Neu');
   let showForm=false;
   const toggleForm=()=>{showForm=!showForm;form.style.display=showForm?'block':'none';};
   newBtn.onclick=toggleForm;top.appendChild(newBtn);s.appendChild(top);
@@ -980,7 +982,7 @@ const applyThemeCss=()=>{
   `;
 };
 applyThemeCss();
-if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}
+if(!IS_PLAYER){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}  
 render();
 </script>
 </body>
