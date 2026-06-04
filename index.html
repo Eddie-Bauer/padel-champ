@@ -33,7 +33,7 @@ button{touch-action:manipulation;font-family:'DM Sans',system-ui,sans-serif;}
 .btn-primary{background:#2563EB;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
 .btn-ghost{background:#F0F2F5;color:#6B7280;border:1px solid #E4E7EC;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
 .btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;}
-body.readonly .admin-only{display:none!important;}
+body.readonly .viewer-hidden{display:none!important;}
 .btn-green{background:#16A34A;color:#fff;border:none;}
 .btn-red{background:#FEF2F2;color:#DC2626;border:1px solid #DC262630;}
 /* Modal overlay */
@@ -131,11 +131,16 @@ const txt=t=>document.createTextNode(t);
 
 // ─── Storage ──────────────────────────────────────────────────
 // ─── Admin Key ────────────────────────────────────────────────
-const ADMIN_KEY='PC111412';
-const PLAYER_KEY='PCPlayer26';
-const _urlKey=new URLSearchParams(window.location.search).get('key');
-const IS_ADMIN=_urlKey===ADMIN_KEY;
-const IS_PLAYER=IS_ADMIN||_urlKey===PLAYER_KEY;
+const ADMIN_HASH='f14e1db32940958d55e859906ed0a51254a3d749231cb573a787c5e742e606a8';
+const PLAYER_HASH='c53c03452b0e56554d66fa73de1fc44451b07844a8aa445db34bf48ffa198cf2';
+const _urlKey=new URLSearchParams(window.location.search).get('key')||'';
+async function _sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+let IS_ADMIN=false,IS_PLAYER=false;
+async function _initAuth(){
+  const h=await _sha256(_urlKey);
+  IS_ADMIN=h===ADMIN_HASH;
+  IS_PLAYER=IS_ADMIN||(h===PLAYER_HASH);
+}
 
 const SK='padelchamp_v1';
 const loadDB=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
@@ -822,7 +827,7 @@ const renderPlayers=()=>{
   const s=div('screen fi');
   const top=div('',{paddingTop:'24px',paddingBottom:'18px',display:'flex',justifyContent:'space-between',alignItems:'flex-end'});
   top.appendChild(span('Spieler 👥',{fontSize:'28px',fontWeight:'800',color:C.text,display:'block'}));
-  const nb=el('button',{class:'press btn-primary btn-sm admin-only'},'+ Neu');let showForm=false;
+  const nb=el('button',{class:'press btn-primary btn-sm viewer-hidden'},'+ Neu');let showForm=false;
   const form=div('card fi',{marginBottom:'14px',display:'none'});
   form.appendChild(span('Neuer Spieler',{fontSize:'13px',fontWeight:'600',color:C.text,display:'block',marginBottom:'10px'}));
   const ni=el('input',{type:'text',placeholder:'Name eingeben...'});ni.style.marginBottom='10px';form.appendChild(ni);
@@ -892,7 +897,7 @@ const renderSettings=()=>{
   const sch=div('',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'});
   sch.appendChild(span('Saisons',{fontSize:'14px',fontWeight:'700',color:C.text}));
   let showNewSeason=false;
-  const newSBtn=el('button',{class:'press admin-only',style:{background:C.accentBg,border:'none',borderRadius:'8px',padding:'5px 12px',color:C.accent,fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'+ Neue Saison');
+  const newSBtn=el('button',{class:'press viewer-hidden',style:{background:C.accentBg,border:'none',borderRadius:'8px',padding:'5px 12px',color:C.accent,fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'+ Neue Saison');
   sch.appendChild(newSBtn);sc.appendChild(sch);
   sc.appendChild(span('Saison anlegen und aktivieren',{fontSize:'13px',color:C.muted,display:'block',marginBottom:'14px'}));
   const nsForm=div('',{background:C.bg,borderRadius:'12px',padding:'12px',marginBottom:'14px',border:'1px solid '+C.border,display:'none'});
@@ -982,8 +987,12 @@ const applyThemeCss=()=>{
   `;
 };
 applyThemeCss();
-if(!IS_PLAYER){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}  
-render();
+(async()=>{
+  await _initAuth();
+  if(!IS_PLAYER){document.getElementById('readonly-banner').style.display='block';document.body.classList.add('readonly');}
+  else if(!IS_ADMIN){document.getElementById('readonly-banner').style.display='block';document.getElementById('readonly-banner').style.background='#2563EB';document.getElementById('readonly-banner').textContent='⚽ Spieler-Modus — Events & Scores';}
+  render();
+})();
 </script>
 </body>
 </html>
