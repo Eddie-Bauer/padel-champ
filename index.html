@@ -787,20 +787,17 @@ const openKiAnalyse=async()=>{
 
   // API call
   try{
+    const geminiKey=localStorage.getItem('pc_gemini_key')||'';
+    if(!geminiKey){alert('Kein Gemini API Key. Bitte in den Einstellungen eintragen.');overlay.remove();return;}
     const prompt=`Du bist ein witziger, direkter Padel-Sportkommentator. Analysiere diese Saison-Daten auf Deutsch und schreib einen kurzen, unterhaltsamen Kommentar (max. 5-6 Sätze). Hebe 2-3 interessante Beobachtungen hervor: Wer dominiert, wer kämpft, Trends oder Überraschungen. Sei konkret, nenn Namen.\n\nSAISON: ${ds.name}\n\nRANGLISTE:\n${rankingText}\n\nLETZTE EVENTS:\n${evText}`;
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{
       method:'POST',
-      headers:{'Content-Type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        messages:[{role:'user',content:prompt}]
-      })
+      headers:{'Content-Type':'application/json','x-goog-api-key':geminiKey},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
     });
     const data=await resp.json();
-    console.log('API response:', JSON.stringify(data));
-    if(data.error){throw new Error(data.error.type+': '+data.error.message);}
-    const text=data?.content?.[0]?.text||'Keine Antwort erhalten. Response: '+JSON.stringify(data);
+    if(data.error){throw new Error(data.error.message);}
+    const text=data?.candidates?.[0]?.content?.parts?.[0]?.text||'Keine Antwort erhalten.';
     resultDiv.innerHTML='';
     // Render paragraphs
     text.split('\n').filter(l=>l.trim()).forEach(line=>{
@@ -938,6 +935,16 @@ const renderSettings=()=>{
   trow.appendChild(mkThemeBtn('light','☀️','Hell','Weiss & klar'));
   trow.appendChild(mkThemeBtn('dark','🌙','Dunkel','Schont die Augen'));
   tc.appendChild(trow);if(IS_ADMIN)s.appendChild(tc);
+  // Gemini API Key
+  const kc=div('card',{marginBottom:'16px'});
+  kc.appendChild(span('Google Gemini API Key',{fontSize:'14px',fontWeight:'700',color:C.text,display:'block',marginBottom:'4px'}));
+  kc.appendChild(span('Für die KI-Analyse in der Rangliste.',{fontSize:'13px',color:C.muted,display:'block',marginBottom:'12px'}));
+  const ki=el('input',{type:'password',placeholder:'AIza...'});
+  ki.value=localStorage.getItem('pc_gemini_key')||'';
+  ki.style.marginBottom='10px';
+  ki.oninput=()=>localStorage.setItem('pc_gemini_key',ki.value.trim());
+  kc.appendChild(ki);
+  if(IS_ADMIN)s.appendChild(kc);
   // Points system
   const pc=div('card',{marginBottom:'16px'});
   pc.appendChild(span('Punktesystem',{fontSize:'14px',fontWeight:'700',color:C.text,display:'block',marginBottom:'4px'}));
