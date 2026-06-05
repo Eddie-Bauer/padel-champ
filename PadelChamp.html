@@ -806,7 +806,7 @@ const openKiAnalyse=async()=>{
     try{
       const resp=await fetch('https://yldwlgeabmwdjefeerpr.supabase.co/functions/v1/analyze',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
         body:JSON.stringify({prompt:prompts[type],playerKey:_urlKey})
       });
       const data=await resp.json();
