@@ -300,8 +300,9 @@ const genMatches=(eid,rnd)=>{
 };
 
 const deleteMatch=(id)=>{
-  const m=S.matches.find(x=>x.id===id);if(!m||m.status==='completed')return;
-  if(!confirm('Dieses Match löschen? (z. B. Spiel hat nicht stattgefunden)'))return;
+  const m=S.matches.find(x=>x.id===id);if(!m)return;
+  const ev=S.events.find(e=>e.id===m.eid);if(ev&&ev.status==='completed')return;
+  if(!confirm('Dieses Match löschen? Ein evtl. Ergebnis wird aus der Rangliste entfernt.'))return;
   mut(()=>{S.matches=S.matches.filter(x=>x.id!==id);});
 };
 
@@ -688,7 +689,7 @@ const renderDetail=()=>{
     // Matches
     rm.forEach(m=>{
       const mc=mkMatchCard(m,isAct&&!locked&&IS_PLAYER?()=>openScoreModal(m):null);if(!mc)return;
-      if(isAct&&!locked&&IS_PLAYER&&m.status!=='completed'){
+      if(!locked&&IS_PLAYER){
         const wrap=div('',{position:'relative'});wrap.appendChild(mc);
         const xb=el('button',{class:'press',title:'Match löschen',style:{position:'absolute',top:'-7px',right:'-7px',width:'22px',height:'22px',borderRadius:'11px',border:'1px solid '+C.red+'55',background:C.redBg,color:C.red,fontSize:'12px',lineHeight:'1',padding:'0',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:'2'}},'✕');
         xb.onclick=(e)=>{e.stopPropagation();deleteMatch(m.id);};
