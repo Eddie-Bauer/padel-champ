@@ -299,6 +299,12 @@ const genMatches=(eid,rnd)=>{
   });
 };
 
+const deleteMatch=(id)=>{
+  const m=S.matches.find(x=>x.id===id);if(!m||m.status==='completed')return;
+  if(!confirm('Dieses Match löschen? (z. B. Spiel hat nicht stattgefunden)'))return;
+  mut(()=>{S.matches=S.matches.filter(x=>x.id!==id);});
+};
+
 // ─── Download helper ──────────────────────────────────────────
 const dlFile=(content,filename,mime)=>{
   const blob=new Blob([content],{type:mime});
@@ -680,7 +686,15 @@ const renderDetail=()=>{
     if(isAct&&rt.length>=2&&rm.length===0&&!locked){const gb=el('button',{class:'press',style:{width:'100%',padding:'11px',borderRadius:'12px',border:'none',background:C.green,color:'#fff',fontSize:'14px',fontWeight:'600',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',marginBottom:'4px'}},'⚡ Spielplan für Runde '+rnd+' generieren');gb.onclick=()=>genMatches(ev.id,rnd);rndSec.appendChild(gb);}
 
     // Matches
-    rm.forEach(m=>{const mc=mkMatchCard(m,isAct&&!locked&&IS_PLAYER?()=>openScoreModal(m):null);if(mc)rndSec.appendChild(mc);});
+    rm.forEach(m=>{
+      const mc=mkMatchCard(m,isAct&&!locked&&IS_PLAYER?()=>openScoreModal(m):null);if(!mc)return;
+      if(isAct&&!locked&&IS_PLAYER&&m.status!=='completed'){
+        const wrap=div('',{position:'relative'});wrap.appendChild(mc);
+        const xb=el('button',{class:'press',title:'Match löschen',style:{position:'absolute',top:'-7px',right:'-7px',width:'22px',height:'22px',borderRadius:'11px',border:'1px solid '+C.red+'55',background:C.redBg,color:C.red,fontSize:'12px',lineHeight:'1',padding:'0',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:'2'}},'✕');
+        xb.onclick=(e)=>{e.stopPropagation();deleteMatch(m.id);};
+        wrap.appendChild(xb);rndSec.appendChild(wrap);
+      } else rndSec.appendChild(mc);
+    });
 
     // Round complete → new round
     if(rdone&&rnd===cr&&!locked){
