@@ -18,6 +18,12 @@ export const checkScore=sets=>{
   return res(true,false,null);
 };
 
+// The players listed for an event: while participants are still being
+// chosen, every active player plus anyone already chosen; once they are
+// fixed, only those who take part.
+export const rosterOf=(players,participantIds,fixed)=>
+  players.filter(p=>participantIds.includes(p.id)||(!fixed&&p.isActive));
+
 // Checks an Americano result: two whole numbers that add up to the points
 // played per match.
 export const checkPoints=(a,b,total)=>{

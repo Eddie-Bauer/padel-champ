@@ -15,7 +15,7 @@ const renderPadelDay=ev=>{
   const canEdit=IS_PLAYER&&ev.status!=='completed';
 
   const roster=rosterSection(ev,cr>0||!canEdit,
-    cr>0?'Die Teilnehmer stehen seit Runde 1 fest.':ep.length<2?'Mindestens 2 Spieler wählen.':null);
+    cr>0?null:ep.length<2?'Mindestens 2 Spieler wählen.':null);
 
   const start=cr===0&&ep.length>=2&&canEdit&&h('div',{class:'pc-card app-pad app-section'},
     h('div',{class:'title-3',text:'Bereit zum Starten'}),

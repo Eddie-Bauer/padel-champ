@@ -131,7 +131,7 @@ export const renderClassic=ev=>{
     const hasPlayoff=ms.some(m=>m.stage!=='group');
     const sub=S.sub==='groups'||S.sub==='playoff'?S.sub:hasPlayoff?'playoff':'groups';
     body=[
-      segmented('Ansicht',[['groups','Gruppen'],['playoff',cfg.mode==='placement'?'Platzierung':'Playoff']],sub,v=>{S.sub=v;notify();}),
+      h('div',{class:'app-switch'},segmented('Ansicht',[['groups','Gruppen'],['playoff',cfg.mode==='placement'?'Platzierung':'Playoff']],sub,v=>{S.sub=v;notify();})),
       sub==='playoff'?playoff(ev,parts,tiedGroups)
         :[h('p',{class:'app-note',style:{marginTop:'var(--space-4)'},text:cfg.mode==='placement'?'Danach spielt jeder Gruppenrang gegen denselben Rang der anderen Gruppe.'
           :'Aus jeder Gruppe '+(cfg.advance===1?'kommt das erste Team':'kommen die ersten '+cfg.advance+' Teams')+' weiter.'}),

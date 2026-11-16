@@ -82,7 +82,7 @@ export const renderAmericano=ev=>{
   return h('main',{class:'app-screen pc-enter'},
     eventHead(ev,overlineOf(ev,started&&ep.length+' Spieler')),
     !started?setup(ev,ep,canEdit):[
-      segmented('Ansicht',[['plan','Spielplan'],['table','Rangliste']],sub,v=>{S.sub=v;notify();}),
+      h('div',{class:'app-switch'},segmented('Ansicht',[['plan','Spielplan'],['table','Rangliste']],sub,v=>{S.sub=v;notify();})),
       sub==='table'?table(ep,teams,ms):plan(ev,ep,teams,ms),
     ],
     eventSection(ev,[discard]));

@@ -69,3 +69,8 @@ button.pc-event { appearance: none; width: 100%; font: inherit; color: inherit; 
 .pc-standings td.app-cut { height: auto; padding: var(--space-3) var(--space-4) var(--space-2); text-align: left;
   font-size: 11px; line-height: 14px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--surface-200); }
 .pc-standings tr.app-unranked td, .pc-standings tr.app-unranked .c-name, .pc-standings tr.app-unranked .c-pts { color: var(--muted); }
+
+/* The view switch inside a tournament: clear of the progress bar above. */
+.app-switch { margin-top: var(--space-6); }
+/* A chip that only shows a participant and cannot be tapped. */
+.pc-chip.app-chip-static { cursor: default; }

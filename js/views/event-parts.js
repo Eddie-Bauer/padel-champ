@@ -4,6 +4,7 @@ import {h,icon,btn,badge,headline,section,first,initials,dm,weekday} from '../do
 import {S,IS_PLAYER,IS_ADMIN,getEP,getMat,curRnd,matByRnd,notify} from '../store.js';
 import {toggleParticipant,completeEvent,deleteEvent,moveEvent,exportTXT} from '../actions.js';
 import {classicEditable,STAGE_LABEL} from '../tournament.js';
+import {rosterOf} from '../logic.js';
 import {matchCard,openScoreSheet} from './match.js';
 import {openSheet,confirmSheet} from '../sheet.js';
 
@@ -54,12 +55,14 @@ export const overlineOf=(ev,extra)=>[weekday(ev.date),extra].filter(Boolean).joi
 
 // "Wer spielt heute?": chips for every active player. `locked` freezes it.
 export const rosterSection=(ev,locked,note)=>{
-  const ep=getEP(ev.id);
-  return section('Wer spielt heute? ('+ep.length+')',null,
-    h('div',{class:'pc-row'},S.players.filter(p=>p.isActive||ep.includes(p)).map(p=>
-      h('button',{type:'button',class:'pc-chip','aria-pressed':String(ep.includes(p)),disabled:locked,
-        onclick:()=>toggleParticipant(ev.id,p.id)},
-        h('span',{class:'pc-chip__avatar',text:initials(p.name)}),first(p.name)))),
+  const ep=getEP(ev.id),list=rosterOf(S.players,ep.map(p=>p.id),locked);
+  const face=p=>[h('span',{class:'pc-chip__avatar',text:initials(p.name)}),first(p.name)];
+  // Fixed: a plain list of who takes part. Open: chips to tap.
+  return section(locked?'Teilnehmer ('+ep.length+')':'Wer spielt heute? ('+ep.length+')',null,
+    h('div',{class:'pc-row'},list.map(p=>locked
+      ?h('span',{class:'pc-chip app-chip-static'},face(p))
+      :h('button',{type:'button',class:'pc-chip','aria-pressed':String(ep.includes(p)),onclick:()=>toggleParticipant(ev.id,p.id)},face(p)))),
+    locked&&!list.length&&h('p',{class:'app-note',style:{margin:'0'},text:'Noch keine Spieler gewählt.'}),
     note&&h('p',{class:'app-note',text:note}));
 };
 

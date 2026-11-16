@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate, checkPoints } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate, checkPoints, rosterOf } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -270,4 +270,16 @@ test('checkPoints: both numbers together must give the match total', () => {
 test('checkPoints: only whole numbers from 0', () => {
   for (const [a, b] of [[-1, 22], [10.5, 10.5], [NaN, 21], ['x', 21]]) assert.equal(checkPoints(a, b, 21).ok, false, a + ':' + b);
   assert.equal(checkPoints(0, 21, 21).ok, true);
+});
+
+// ── who is shown in "Wer spielt heute?" ──
+test('rosterOf: while choosing, every active player plus anyone already chosen', () => {
+  const ps = [{ id: '1', isActive: true }, { id: '2', isActive: false }, { id: '3', isActive: true }, { id: '4', isActive: false }];
+  assert.deepEqual(rosterOf(ps, ['2', '3'], false).map(p => p.id), ['1', '2', '3']);
+});
+
+test('rosterOf: once the participants are fixed, only those who take part', () => {
+  const ps = [{ id: '1', isActive: true }, { id: '2', isActive: false }, { id: '3', isActive: true }];
+  assert.deepEqual(rosterOf(ps, ['2', '3'], true).map(p => p.id), ['2', '3']);
+  assert.deepEqual(rosterOf(ps, [], true), []);
 });
