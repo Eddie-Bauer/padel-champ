@@ -8,18 +8,18 @@ import {eventCard,openNewEvent} from './events.js';
 const leaderHero=st=>{
   const lead=st[0],second=st[1];
   if(!lead||lead.mp===0)return null;
-  const gap=second?lead.pts-second.pts:0;
-  const sub=!second?'Bisher allein in der Wertung.'
-    :gap===0?'Punktgleich mit '+first(second.player.name)+'.'
-    :gap+(gap===1?' Punkt':' Punkte')+' Vorsprung auf '+first(second.player.name)+'.';
+  const gap=second&&second.mp>0?lead.pct-second.pct:null;
+  const sub=gap===null?'Bisher allein in der Wertung.'
+    :gap===0?'Gleiche Siegquote wie '+first(second.player.name)+'.'
+    :gap+(gap===1?' Prozentpunkt':' Prozentpunkte')+' vor '+first(second.player.name)+'.';
   const stat=(value,label)=>h('div',null,h('b',{text:String(value)}),h('span',{text:label}));
   return h('div',{class:'pc-hero'},
     h('div',{class:'pc-hero__label',text:'Spitzenreiter'}),
     h('div',{class:'pc-herostat__main'},
-      h('span',{class:'pc-herostat__num',text:String(lead.pts)}),
-      h('span',{class:'pc-herostat__unit',text:'Punkte · '+first(lead.player.name)})),
+      h('span',{class:'pc-herostat__num',text:lead.pct+'%'}),
+      h('span',{class:'pc-herostat__unit',text:'Siegquote · '+first(lead.player.name)})),
     h('div',{class:'pc-herostat__sub',text:sub}),
-    h('div',{class:'pc-herostat__row'},stat(lead.mp,'Spiele'),stat(lead.w,'Siege'),stat(lead.pct+'%','Quote')));
+    h('div',{class:'pc-herostat__row'},stat(lead.mp,'Spiele'),stat(lead.w,'Siege'),stat(lead.pts,'Punkte')));
 };
 
 export const renderHome=()=>{

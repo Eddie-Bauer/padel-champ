@@ -6,7 +6,7 @@ import {openKiAnalyse} from './ki.js';
 
 const COLS=[
   ['#','Rang','c-rank'],['Spieler','Spieler','c-name'],['Sp','Spiele','c-opt'],['S','Siege',''],
-  ['N','Niederlagen',''],['%','Siegquote','c-opt'],['Diff','Satzdifferenz',''],['Pkt','Punkte','c-pts'],
+  ['N','Niederlagen',''],['Pkt','Punkte','c-opt'],['Diff','Satzdifferenz',''],['%','Siegquote','c-pts'],
 ];
 
 const table=st=>h('div',{class:'pc-card',style:{overflow:'hidden'}},
@@ -19,9 +19,9 @@ const table=st=>h('div',{class:'pc-card',style:{overflow:'hidden'}},
       h('td',{class:'c-opt',text:String(x.mp)}),
       h('td',{text:String(x.w)}),
       h('td',{text:String(x.l)}),
-      h('td',{class:'c-opt',text:x.pct+'%'}),
+      h('td',{class:'c-opt',text:String(x.pts)}),
       h('td',{class:x.sd>0?'is-pos':x.sd<0?'is-neg':null,text:signed(x.sd)}),
-      h('td',{class:'c-pts',text:String(x.pts)}))))));
+      h('td',{class:'c-pts',text:x.pct+'%'}))))));
 
 export const renderStandings=()=>{
   const ds=displaySeason();
@@ -36,7 +36,7 @@ export const renderStandings=()=>{
     st.length===0
       ?h('div',{class:'app-empty'},h('p',{style:{margin:'0'},text:'Noch keine Ergebnisse in dieser Saison.'}))
       :[table(st),
-        h('p',{class:'app-note pc-num',text:'Sieg = '+S.settings.ptsWin+' Pkt · Niederlage = '+(S.settings.ptsLoss||0)+' Pkt · Diff = Satzdifferenz'}),
+        h('p',{class:'app-note pc-num',text:'Sortiert nach Siegquote (%), dann Satzdifferenz. Pkt: Sieg = '+S.settings.ptsWin+', Niederlage = '+(S.settings.ptsLoss||0)+'.'}),
         h('div',{class:'app-actions',style:{marginTop:'var(--space-4)'}},
           IS_PLAYER&&btn('secondary','KI-Analyse',openKiAnalyse,{icon:'spark',pill:true}),
           btn('secondary','Als CSV exportieren',exportCSV,{icon:'download'}))]);

@@ -54,7 +54,10 @@ export const withoutEvent=(state,eid)=>{
   };
 };
 
-// Season ranking per player. state = {players, events, teams, matches, settings}
+// Season ranking per player, ordered by win rate (not by points): whoever
+// played comes first, then win rate, set difference, game difference, and
+// finally more matches played. state = {players, events, teams, matches, settings}
+const rate=r=>r.mp>0?r.w/r.mp:0;
 export const calcStandings=(state,seasonId)=>{
   const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));
   const cms=state.matches.filter(m=>m.status==='completed'&&eids.has(m.eid));
@@ -77,5 +80,5 @@ export const calcStandings=(state,seasonId)=>{
   return Object.entries(acc).map(([pid,a])=>{
     const mp=a.w+a.l,pts=a.w*state.settings.ptsWin+a.l*(state.settings.ptsLoss||0);
     return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0};
-  }).filter(s=>s.player).sort((a,b)=>b.pts-a.pts||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
+  }).filter(s=>s.player).sort((a,b)=>(b.mp>0)-(a.mp>0)||rate(b)-rate(a)||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
 };

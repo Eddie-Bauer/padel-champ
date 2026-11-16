@@ -159,3 +159,37 @@ test('checkScore: one set each without a decider is refused', () => {
 test('checkScore: no sets at all is refused', () => {
   assert.equal(checkScore([]).ok, false);
 });
+
+// ── ranking by win rate ──
+test('calcStandings: ordered by win rate, not by points', () => {
+  // With 2 points per loss, P3 (1 win, 2 losses) has 7 points and 33 %;
+  // P1 (1 win, 0 losses) has 3 points and 100 %. P1 must rank higher.
+  const s = fixture({ players: players(6), settings: { ptsWin: 3, ptsLoss: 2 } });
+  s.teams.push(
+    { id: 'tA', eid: 'e1', rnd: 2, player1Id: '3', player2Id: '5' }, { id: 'tB', eid: 'e1', rnd: 2, player1Id: '4', player2Id: '6' },
+    { id: 'tC', eid: 'e1', rnd: 3, player1Id: '3', player2Id: '6' }, { id: 'tD', eid: 'e1', rnd: 3, player1Id: '4', player2Id: '5' });
+  s.matches.push(
+    match({ id: 'm2', team1Id: 'tA', team2Id: 'tB', winnerTeamId: 'tB' }),
+    match({ id: 'm3', team1Id: 'tC', team2Id: 'tD', winnerTeamId: 'tC' }));
+  const rows = calcStandings(s, 's1');
+  assert.ok(row(rows, '3').pts > row(rows, '1').pts, 'the fixture must put points and win rate at odds');
+  assert.ok(row(rows, '1').rank < row(rows, '3').rank);
+  const rates = rows.filter(r => r.mp > 0).map(r => r.w / r.mp);
+  assert.deepEqual(rates, [...rates].sort((a, b) => b - a));
+});
+
+test('calcStandings: equal win rate is settled by set difference, then game difference', () => {
+  const s = fixture({ players: players(8) });
+  s.teams.push({ id: 'tE', eid: 'e1', rnd: 1, player1Id: '5', player2Id: '6' }, { id: 'tF', eid: 'e1', rnd: 1, player1Id: '7', player2Id: '8' });
+  // P5/P6 also win 2:0 in sets, but 6:0 6:0 instead of 6:4 6:3.
+  s.matches.push(match({ id: 'm2', team1Id: 'tE', team2Id: 'tF', winnerTeamId: 'tE', t1s1: 6, t2s1: 0, t1s2: 6, t2s2: 0 }));
+  const rows = calcStandings(s, 's1');
+  assert.deepEqual(rows.slice(0, 4).map(r => r.player.id), ['5', '6', '1', '2']);
+});
+
+test('calcStandings: players without a match come after everyone who played', () => {
+  const s = fixture({ players: players(5) });
+  const rows = calcStandings(s, 's1');
+  assert.equal(rows.at(-1).player.id, '5');
+  assert.ok(row(rows, '3').rank < row(rows, '5').rank, 'a played 0 % ranks above not played');
+});

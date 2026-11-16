@@ -28,7 +28,7 @@ export const renderPlayers=()=>{
   const active=S.players.filter(p=>p.isActive),inactive=S.players.filter(p=>!p.isActive);
   const row=p=>{
     const x=st.find(r=>r.player.id===p.id);
-    const line=x&&x.mp>0?x.pts+' Pkt · Rang '+x.rank+' · '+x.w+' S '+x.l+' N':'Noch keine Spiele';
+    const line=x&&x.mp>0?x.pct+'% · Rang '+x.rank+' · '+x.w+' S '+x.l+' N':'Noch keine Spiele';
     return h('div',{class:'app-row'},
       avatar(p),
       h('span',{class:'app-row__text'},h('span',{class:'title-3',text:p.name}),h('span',{class:'body-sm pc-muted pc-num',text:line})),
