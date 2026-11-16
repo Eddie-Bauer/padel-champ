@@ -88,7 +88,7 @@
 .pc-badge--live { background: transparent; color: var(--live); padding-left: 0; letter-spacing: .06em; text-transform: uppercase; }
 .pc-badge--live::before { width: 8px; height: 8px; animation: pc-pulse 1.6s ease-in-out infinite; }
 .pc-badge--done { background: var(--accent-soft); color: var(--accent-ink); }
-.pc-badge--locked { background: var(--warn-soft); color: var(--warn); }
+.pc-badge--locked { background: var(--accent-soft); color: var(--accent-ink); }
 .pc-badge--win { background: var(--copper); color: var(--on-copper); }
 .pc-badge--win::before { display: none; }
 @keyframes pc-pulse { 50% { opacity: .35; } }
@@ -117,6 +117,7 @@
 .pc-event__title { font-size: 16px; line-height: 22px; font-weight: 600; }
 .pc-event__sub { font-size: 14px; line-height: 20px; color: var(--muted); }
 .pc-event__chev { color: var(--muted); }
+.pc-event > .pc-badge { align-self: start; }
 
 /* ── Progress ─────────────────────────────────────────── */
 .pc-progress { height: 6px; border-radius: var(--radius-sm); background: var(--surface-200); overflow: hidden; }
