@@ -62,3 +62,12 @@ test('every icon the app asks for is defined', () => {
   }
   assert.deepEqual([...asked].filter(i => !defined.has(i)), []);
 });
+
+test('every token used by the components and the app layout is defined', () => {
+  const defined = new Set([...read('ds/tokens.css').matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+  const missing = new Set();
+  for (const f of ['ds/bundle.css', 'css/app.css', ...jsFiles]) {
+    for (const m of read(f).matchAll(/var\((--[\w-]+)/g)) if (!defined.has(m[1])) missing.add(f + ': ' + m[1]);
+  }
+  assert.deepEqual([...missing], []);
+});
