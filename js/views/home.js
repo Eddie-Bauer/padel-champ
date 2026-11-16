@@ -19,7 +19,8 @@ const leaderHero=st=>{
   return h('div',{class:'pc-hero'},
     h('div',{class:'pc-hero__label',text:lead.qualified?'Spitzenreiter':'Vorläufig vorn'}),
     h('div',{class:'pc-herostat__main'},
-      h('span',{class:'pc-herostat__num',text:lead.pct+'%'}),
+      // Half the size of the design system's hero number (80): its 40px display style.
+      h('span',{class:'display pc-num',text:lead.pct+'%'}),
       h('span',{class:'pc-herostat__unit',text:'Siegquote · '+first(lead.player.name)})),
     h('div',{class:'pc-herostat__sub',text:sub}),
     h('div',{class:'pc-herostat__row'},stat(lead.mp,'Spiele'),stat(lead.w,'Siege'),stat(lead.pts,'Punkte')));
