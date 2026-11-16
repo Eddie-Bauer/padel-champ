@@ -24,6 +24,9 @@ const CORS = {
 const AI_MAX_PER_DAY = 40;
 const MAX_OPS = 5000;
 const MAX_PROMPT = 20000;
+const MAX_CONFIG = 20000;
+const FORMATS = ["padel_day", "americano", "classic"];
+const STAGES = ["group", "quarter", "semi", "third", "final", "place"];
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -58,13 +61,13 @@ async function roleFor(key, env) {
 const COLUMNS = {
   players: ["id", "name", "is_active"],
   seasons: ["id", "name", "start_date", "end_date", "is_active"],
-  events: ["id", "season_id", "date", "name", "status"],
+  events: ["id", "season_id", "date", "name", "status", "format", "config"],
   event_players: ["event_id", "player_id"],
-  teams: ["id", "event_id", "rnd", "player1_id", "player2_id", "name"],
+  teams: ["id", "event_id", "rnd", "player1_id", "player2_id", "name", "grp"],
   matches: ["id", "event_id", "team1_id", "team2_id", "rnd", "seq",
-    "t1s1", "t2s1", "t1s2", "t2s2", "t1s3", "t2s3", "winner_team_id", "status"],
+    "t1s1", "t2s1", "t1s2", "t2s2", "t1s3", "t2s3", "winner_team_id", "status", "stage", "court"],
   bye_map: ["event_id", "rnd", "player_id"],
-  settings: ["id", "pts_win", "pts_loss"],
+  settings: ["id", "pts_win", "pts_loss", "min_matches"],
 };
 
 const KEYS = {
@@ -104,7 +107,12 @@ export function checkOps(role, ops) {
       if (!isObj(o.row)) return bad("upsert without row");
       for (const [col, val] of Object.entries(o.row)) {
         if (!COLUMNS[o.t].includes(col)) return bad("unknown column in " + o.t);
-        if (!isScalar(val)) return bad("invalid value in " + o.t);
+        // The setup of a tournament is the one value that is an object.
+        if (o.t === "events" && col === "config") {
+          if (!isObj(val) || JSON.stringify(val).length > MAX_CONFIG) return bad("invalid config");
+        } else if (!isScalar(val)) return bad("invalid value in " + o.t);
+        if (o.t === "events" && col === "format" && !FORMATS.includes(val)) return bad("unknown format");
+        if (o.t === "matches" && col === "stage" && val !== null && !STAGES.includes(val)) return bad("unknown stage");
       }
       for (const k of KEYS[o.t]) if (!isKeyValue(o.row[k])) return bad("row without key in " + o.t);
     } else {

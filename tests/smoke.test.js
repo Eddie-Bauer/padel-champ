@@ -110,7 +110,7 @@ test('moving an event to another season sends exactly that event', async () => {
   // A new Padel Day goes to the season its date belongs to, not the active one.
   const id = addEvent('2026-10-04');
   assert.equal(store.S.events.find(e => e.id === id).sid, 's2');
-  const { openMoveEvent } = await import('../js/views/detail.js');
+  const { openMoveEvent } = await import('../js/views/event-parts.js');
   assert.doesNotThrow(() => openMoveEvent(store.S.events[0]).close());
 });
 

@@ -1,9 +1,8 @@
 // Start: the season leader, and the current Padel Day.
 import {h,btn,iconBtn,headline,section,first,dm} from '../dom.js';
-import {S,IS_PLAYER,activeSeason,curRnd,matByRnd,getMat,standings,notify} from '../store.js';
-import {matchCard,openScoreSheet} from './match.js';
+import {S,IS_PLAYER,activeSeason,curRnd,matByRnd,getMat,standings,notify,minMatches} from '../store.js';
 import {eventCard,openNewEvent} from './events.js';
-import {MIN_MATCHES} from '../logic.js';
+import {FORMAT_LABEL,formatOf,eventMatchCard} from './event-parts.js';
 
 // The one hero card of the screen: who leads the season, in one big number.
 const leaderHero=st=>{
@@ -12,7 +11,7 @@ const leaderHero=st=>{
   // Before anyone has the minimum, the leader is only provisional.
   const rival=second&&second.mp>0&&second.qualified===lead.qualified?second:null;
   const gap=rival?lead.pct-rival.pct:null;
-  const sub=!lead.qualified?'Vorläufig: Noch niemand hat '+MIN_MATCHES+' Spiele.'
+  const sub=!lead.qualified?'Vorläufig: Noch niemand hat '+minMatches()+' Spiele.'
     :gap===null?'Bisher allein in der Wertung.'
     :gap===0?'Gleiche Siegquote wie '+first(rival.player.name)+'.'
     :gap+(gap===1?' Prozentpunkt':' Prozentpunkte')+' vor '+first(rival.player.name)+'.';
@@ -37,18 +36,20 @@ export const renderHome=()=>{
       h('div',{class:'app-head'},headline(as.name,null,'PadelChamp'),settingsBtn),
       leaderHero(standings()),
       h('div',{class:'app-empty'},
-        h('p',{style:{margin:'0'},text:'Noch kein Padel Day in dieser Saison.'}),
-        IS_PLAYER&&btn('primary','Neuer Padel Day',openNewEvent,{icon:'plus'})));
+        h('p',{style:{margin:'0'},text:'Noch kein Event in dieser Saison.'}),
+        IS_PLAYER&&btn('primary','Neues Event',openNewEvent,{icon:'plus'})));
   }
 
+  // A Padel Day shows its current round; a tournament its next open matches.
+  const padelDay=formatOf(latest)==='padel_day';
   const cr=curRnd(latest.id);
-  const canEdit=IS_PLAYER&&latest.status!=='completed';
-  const ms=matByRnd(latest.id,cr);
+  const ms=padelDay?matByRnd(latest.id,cr)
+    :getMat(latest.id).filter(m=>m.status!=='completed').sort((a,b)=>a.rnd-b.rnd||a.seq-b.seq).slice(0,3);
   return h('main',{class:'app-screen pc-enter'},
-    h('div',{class:'app-head'},headline(as.name,'Padel Day ',dm(latest.date)),settingsBtn),
+    h('div',{class:'app-head'},headline(as.name,FORMAT_LABEL[formatOf(latest)]+' ',dm(latest.date)),settingsBtn),
     leaderHero(standings()),
-    section('Aktueller Padel Day',null,eventCard(latest)),
-    ms.length>0&&section('Runde '+cr,null,
-      h('div',{class:'app-list'},ms.map(m=>matchCard(m,canEdit?()=>openScoreSheet(m):null)))),
+    section('Aktuelles Event',null,eventCard(latest)),
+    ms.length>0&&section(padelDay?'Runde '+cr:'Nächste Matches',null,
+      h('div',{class:'app-list'},ms.map(m=>eventMatchCard(latest,m)))),
     getMat(latest.id).length===0&&h('p',{class:'app-note',text:'Noch kein Spielplan.'}));
 };

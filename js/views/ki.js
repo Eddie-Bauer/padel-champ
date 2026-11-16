@@ -10,7 +10,7 @@ const teamOf=id=>S.teams.find(t=>t.id===id);
 // The three questions and the data each one gets.
 const buildPrompts=()=>{
   const ds=displaySeason(),st=standings();
-  const evs=S.events.filter(e=>e.sid===ds.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const evs=S.events.filter(e=>e.sid===ds.id&&(e.format||'padel_day')==='padel_day').sort((a,b)=>b.date.localeCompare(a.date));
   const played=m=>m.status==='completed'&&m.winnerTeamId;
 
   const rankingText=st.map((x,i)=>`${i+1}. ${x.player.name}: ${x.pts} Pkt, ${x.w}S/${x.l}N, ${x.pct}% Siegquote, Satzdiff ${x.sd>0?'+':''}${x.sd}${x.qualified?'':' (noch außer Wertung, zu wenige Spiele)'}`).join('\n');

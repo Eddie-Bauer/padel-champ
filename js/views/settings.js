@@ -60,6 +60,11 @@ export const renderSettings=()=>h('main',{class:'app-screen pc-enter'},
       pointsStepper('Punkte pro Sieg','ptsWin',1,10),
       pointsStepper('Punkte pro Niederlage','ptsLoss',0,9))),
 
+  IS_ADMIN&&section('Wertung',null,
+    h('div',{class:'pc-card app-pad app-stack'},
+      pointsStepper('Mindestspiele pro Saison','minMatches',1,50),
+      h('p',{class:'app-note',text:'Wer in einer Saison weniger Spiele hat, steht in der Rangliste außer Wertung und kann die Saison nicht gewinnen.'}))),
+
   IS_ADMIN&&section('Saisons',null,
     h('div',{class:'pc-card'},S.seasons.map(seasonRow)),
     h('div',{class:'app-actions',style:{marginTop:'var(--space-3)'}},btn('secondary','Neue Saison',openNewSeason,{icon:'plus'}))),

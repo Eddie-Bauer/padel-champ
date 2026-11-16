@@ -193,3 +193,48 @@ test('makeDb throws when the database answers with an error', async () => {
   const db = makeDb({ get: () => 'x' }, fetchFn);
   await assert.rejects(db.rpc('apply_ops', { ops: [] }), /violates foreign key/);
 });
+
+// ── tournament fields ──
+const evRow = over => ({ t: 'events', a: 'upsert', row: { id: 'e1', season_id: 's1', date: '2026-10-04', name: 'Turnier', status: 'planned', ...over } });
+
+test('player may save a tournament: format, config, group, stage and court are accepted', async () => {
+  const ops = [
+    evRow({ format: 'classic', config: { groups: 2, advance: 2, thirdPlace: true, tiebreak: { A: ['t1', 't2'] } } }),
+    { t: 'teams', a: 'upsert', row: { id: 't1', event_id: 'e1', rnd: 0, player1_id: 'p1', player2_id: 'p2', name: 'a', grp: 'A' } },
+    { t: 'matches', a: 'upsert', row: { id: 'm1', event_id: 'e1', team1_id: 't1', team2_id: 't2', rnd: 1, seq: 1, stage: 'group', court: null } },
+    { t: 'matches', a: 'upsert', row: { id: 'm2', event_id: 'e1', team1_id: 't1', team2_id: 't2', rnd: 1, seq: 1, stage: null, court: 2 } },
+  ];
+  const r = await call({ action: 'ops', ops }, { key: KEYS.player });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.db.calls[0][1].ops, ops);
+});
+
+test('checkOps: an object is only allowed as the config of an event', () => {
+  assert.equal(checkOps('admin', [evRow({ config: { courts: 2 } })]).ok, true);
+  assert.equal(checkOps('admin', [evRow({ config: {} })]).ok, true);
+  for (const bad of [
+    evRow({ config: 'x' }), evRow({ config: [1, 2] }), evRow({ config: null }),
+    evRow({ name: { x: 1 } }),
+    { t: 'teams', a: 'upsert', row: { id: 't1', grp: { x: 1 } } },
+    { t: 'matches', a: 'upsert', row: { id: 'm1', config: {} } },
+  ]) assert.equal(checkOps('admin', [bad]).status, 400, JSON.stringify(bad));
+});
+
+test('checkOps: an oversized config is refused', () => {
+  assert.equal(checkOps('admin', [evRow({ config: { x: 'y'.repeat(20001) } })]).status, 400);
+});
+
+test('checkOps: only known formats and stages', () => {
+  for (const format of ['padel_day', 'americano', 'classic']) assert.equal(checkOps('admin', [evRow({ format })]).ok, true, format);
+  assert.equal(checkOps('admin', [evRow({ format: 'chess' })]).status, 400);
+  assert.equal(checkOps('admin', [evRow({ format: null })]).status, 400);
+  const m = stage => ({ t: 'matches', a: 'upsert', row: { id: 'm1', stage } });
+  for (const stage of [null, 'group', 'quarter', 'semi', 'third', 'final']) assert.equal(checkOps('admin', [m(stage)]).ok, true, String(stage));
+  assert.equal(checkOps('admin', [m('warmup')]).status, 400);
+});
+
+test('admin may change the minimum number of matches; the placement stage is known', () => {
+  assert.equal(checkOps('admin', [{ t: 'settings', a: 'upsert', row: { id: 1, pts_win: 3, pts_loss: 0, min_matches: 6 } }]).ok, true);
+  assert.equal(checkOps('player', [{ t: 'settings', a: 'upsert', row: { id: 1, min_matches: 1 } }]).status, 403);
+  assert.equal(checkOps('admin', [{ t: 'matches', a: 'upsert', row: { id: 'm1', stage: 'place' } }]).ok, true);
+});

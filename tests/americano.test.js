@@ -175,3 +175,32 @@ test('americanoStandings: ties are ordered by point difference, then wins', () =
   assert.deepEqual(rows.slice(0, 4).map(x => x.id), ['p1', 'p2', 'p5', 'p6']);
   assert.deepEqual(rows.map(x => x.rank), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
+
+// ── from stored teams and matches to the Americano ranking ──
+import { americanoResults, restingIn } from '../js/tournament.js';
+
+test('americanoResults: stored matches become results per player; open ones stay without score', () => {
+  const teams = [
+    { id: 'ta', player1Id: 'p1', player2Id: 'p2' }, { id: 'tb', player1Id: 'p3', player2Id: 'p4' },
+  ];
+  const matches = [
+    { team1Id: 'ta', team2Id: 'tb', t1s1: 12, t2s1: 9, status: 'completed' },
+    { team1Id: 'ta', team2Id: 'tb', t1s1: null, t2s1: null, status: 'scheduled' },
+    { team1Id: 'ta', team2Id: 'gone', t1s1: 5, t2s1: 16, status: 'completed' },
+  ];
+  assert.deepEqual(americanoResults(teams, matches), [
+    { team1: ['p1', 'p2'], team2: ['p3', 'p4'], s1: 12, s2: 9 },
+    { team1: ['p1', 'p2'], team2: ['p3', 'p4'], s1: null, s2: null },
+  ]);
+  const rows = americanoStandings(['p1', 'p2', 'p3', 'p4'], americanoResults(teams, matches));
+  assert.deepEqual(rows.map(r => [r.id, r.pts]), [['p1', 12], ['p2', 12], ['p3', 9], ['p4', 9]]);
+});
+
+test('restingIn: the participants who are in no team of that round', () => {
+  const teams = [
+    { rnd: 1, player1Id: 'p1', player2Id: 'p2' }, { rnd: 1, player1Id: 'p3', player2Id: 'p4' },
+    { rnd: 2, player1Id: 'p5', player2Id: 'p2' }, { rnd: 2, player1Id: 'p3', player2Id: 'p1' },
+  ];
+  assert.deepEqual(restingIn(['p1', 'p2', 'p3', 'p4', 'p5'], teams, 1), ['p5']);
+  assert.deepEqual(restingIn(['p1', 'p2', 'p3', 'p4', 'p5'], teams, 2), ['p4']);
+});

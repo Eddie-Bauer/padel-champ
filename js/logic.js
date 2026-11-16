@@ -18,6 +18,21 @@ export const checkScore=sets=>{
   return res(true,false,null);
 };
 
+// The players listed for an event: while participants are still being
+// chosen, every active player plus anyone already chosen; once they are
+// fixed, only those who take part.
+export const rosterOf=(players,participantIds,fixed)=>
+  players.filter(p=>participantIds.includes(p.id)||(!fixed&&p.isActive));
+
+// Checks an Americano result: two whole numbers that add up to the points
+// played per match.
+export const checkPoints=(a,b,total)=>{
+  const whole=n=>Number.isInteger(n)&&n>=0;
+  if(!whole(a)||!whole(b))return{ok:false,error:'Bitte für beide Teams eine ganze Zahl ab 0 eingeben.'};
+  if(a+b!==total)return{ok:false,error:'Beide Zahlen zusammen müssen '+total+' ergeben (jetzt '+(a+b)+').'};
+  return{ok:true,error:null};
+};
+
 export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' & '+p2.name.split(' ')[0];
 
 // Random pairs. With an odd number one player sits out (bye), but never the
@@ -64,13 +79,14 @@ export const seasonForDate=(seasons,date)=>{
 // To win the season a player needs at least this many matches.
 export const MIN_MATCHES=10;
 
-// Season ranking per player. Players with at least `minMatches` matches are
+// Season ranking per player. Players with at least `minimum` matches are
 // in the ranking (`qualified`) and come first; the others follow. Within
 // each group: win rate (not points), set difference, game difference, more
 // matches played. Players without any match come last. state = {players, events, teams, matches, settings}
 const rate=r=>r.mp>0?r.w/r.mp:0;
-export const calcStandings=(state,seasonId,minMatches=MIN_MATCHES)=>{
-  const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));
+export const calcStandings=(state,seasonId,minimum=MIN_MATCHES)=>{
+  // Only Padel Days count for the season; tournaments have their own ranking.
+  const eids=new Set(state.events.filter(e=>e.sid===seasonId&&(e.format||'padel_day')==='padel_day').map(e=>e.id));
   const cms=state.matches.filter(m=>m.status==='completed'&&eids.has(m.eid));
   const acc={};
   const ga=id=>{if(!acc[id])acc[id]={w:0,l:0,sw:0,sl:0,gw:0,gl:0};return acc[id];};
@@ -90,6 +106,6 @@ export const calcStandings=(state,seasonId,minMatches=MIN_MATCHES)=>{
   }
   return Object.entries(acc).map(([pid,a])=>{
     const mp=a.w+a.l,pts=a.w*state.settings.ptsWin+a.l*(state.settings.ptsLoss||0);
-    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0,qualified:mp>=minMatches};
+    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0,qualified:mp>=minimum};
   }).filter(s=>s.player).sort((a,b)=>b.qualified-a.qualified||(b.mp>0)-(a.mp>0)||rate(b)-rate(a)||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
 };
