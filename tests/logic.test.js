@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -223,4 +223,27 @@ test('calcStandings: players in the ranking come before those who are not, whate
 test('calcStandings: the minimum can be set per call', () => {
   const rows = calcStandings(fixture(), 's1', 1);
   assert.ok(rows.every(r => r.qualified));
+});
+
+// ── which season a date belongs to ──
+const SEASONS = [
+  { id: 'q3', name: 'Q3', startDate: '2026-07-01', endDate: '2026-09-30', isActive: true },
+  { id: 'q4', name: 'Q4', startDate: '2026-10-01', endDate: '2026-12-31', isActive: false },
+];
+
+test('seasonForDate: the season whose dates contain the day, even if another one is active', () => {
+  assert.equal(seasonForDate(SEASONS, '2026-10-04').id, 'q4');
+  assert.equal(seasonForDate(SEASONS, '2026-09-30').id, 'q3');
+  assert.equal(seasonForDate(SEASONS, '2026-10-01').id, 'q4');
+});
+
+test('seasonForDate: a day outside every season falls back to the active season', () => {
+  assert.equal(seasonForDate(SEASONS, '2027-02-01').id, 'q3');
+  assert.equal(seasonForDate([{ id: 'x', name: 'X', isActive: true }], '2026-10-04').id, 'x');
+});
+
+test('seasonForDate: overlapping seasons prefer the active one; no seasons gives null', () => {
+  const both = [{ ...SEASONS[1], startDate: '2026-07-01' }, SEASONS[0]];
+  assert.equal(seasonForDate(both, '2026-08-01').id, 'q3');
+  assert.equal(seasonForDate([], '2026-08-01'), null);
 });

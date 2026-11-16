@@ -2,7 +2,7 @@
 // (a sheet); the functions here just do the change.
 import {fmtDate,dmy,ymd} from './dom.js';
 import {uid,S,displaySeason,activeSeason,getEP,matByRnd,standings,mut,IS_ADMIN} from './store.js';
-import {teamName,drawTeams,roundRobin,withoutEvent} from './logic.js';
+import {teamName,drawTeams,roundRobin,withoutEvent,seasonForDate} from './logic.js';
 
 // ─── Players ──────────────────────────────────────────────────
 export const addPlayer=name=>{
@@ -16,13 +16,19 @@ export const setPlayerActive=(id,active)=>{
 };
 
 // ─── Events ───────────────────────────────────────────────────
-// Creates a Padel Day in the active season and returns its id (or null when
-// this access may not change anything).
+// Creates a Padel Day in the season its date belongs to and returns its id
+// (or null when this access may not change anything).
 export const addEvent=date=>{
   const id=uid();
   let done=false;
-  mut(()=>{S.events.push({id,sid:activeSeason().id,name:'Padel Day '+dmy(date),date,status:'planned'});done=true;});
+  const season=seasonForDate(S.seasons,date)||activeSeason();
+  mut(()=>{S.events.push({id,sid:season.id,name:'Padel Day '+dmy(date),date,status:'planned'});done=true;});
   return done?id:null;
+};
+// Puts an event into another season; its results count there from then on. Admin only.
+export const moveEvent=(eid,sid)=>{
+  if(!IS_ADMIN||!S.seasons.some(s=>s.id===sid))return;
+  mut(()=>{const ev=S.events.find(e=>e.id===eid);if(ev)ev.sid=sid;});
 };
 export const completeEvent=eid=>mut(()=>{const ev=S.events.find(e=>e.id===eid);if(ev)ev.status='completed';});
 // Removes an event with all its rounds and results. Admin only.

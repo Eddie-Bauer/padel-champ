@@ -1,11 +1,11 @@
 // One Padel Day: participants, rounds, teams and matches.
 import {h,icon,btn,badge,headline,section,first,initials,dm,weekday} from '../dom.js';
 import {S,IS_PLAYER,IS_ADMIN,getEP,getTeams,getMat,curRnd,matByRnd,teamByRnd,rndDone,getEv,notify} from '../store.js';
-import {genTeams,genMatches,toggleParticipant,completeEvent,deleteEvent,exportTXT} from '../actions.js';
+import {genTeams,genMatches,toggleParticipant,completeEvent,deleteEvent,moveEvent,exportTXT} from '../actions.js';
 import {matchCard,openScoreSheet,teamLabel} from './match.js';
 import {openTeamBuilder} from './teambuilder.js';
 import {renderEvents} from './events.js';
-import {confirmSheet} from '../sheet.js';
+import {openSheet,confirmSheet} from '../sheet.js';
 
 // The next match without a result in the current round, if any.
 export const nextOpenMatch=eid=>matByRnd(eid,curRnd(eid)).find(m=>m.status!=='completed')||null;
@@ -13,6 +13,25 @@ export const nextOpenMatch=eid=>matByRnd(eid,curRnd(eid)).find(m=>m.status!=='co
 const statusBadge=ev=>ev.status==='active'?badge('live','Live')
   :ev.status==='completed'?badge('locked','Gesperrt','lock')
   :badge('','Geplant');
+
+// Sheet that puts an event into another season.
+export const openMoveEvent=ev=>{
+  let target=ev.sid;
+  const chips=h('div',{class:'pc-row',role:'group','aria-label':'Saison'});
+  const moveBtn=btn('primary','Verschieben',()=>{moveEvent(ev.id,target);sheet.close();},{disabled:true});
+  const draw=()=>{
+    chips.replaceChildren(...S.seasons.map(ss=>h('button',{type:'button',class:'pc-chip app-chip-text','aria-pressed':String(ss.id===target),
+      onclick:()=>{target=ss.id;draw();},text:ss.name})));
+    moveBtn.disabled=target===ev.sid;
+  };
+  draw();
+  const sheet=openSheet({
+    title:'In welche Saison?',
+    body:[h('p',{class:'pc-muted',style:{margin:'0 0 var(--space-4)'},text:ev.name+' zählt danach mit allen Ergebnissen für die gewählte Saison.'}),chips],
+    foot:[btn('secondary','Abbrechen',()=>sheet.close()),moveBtn],
+  });
+  return sheet;
+};
 
 export const renderDetail=()=>{
   const ev=getEv();if(!ev)return renderEvents();
@@ -95,6 +114,7 @@ export const renderDetail=()=>{
       text:ev.name+' wird gesperrt. Ergebnisse lassen sich danach nicht mehr ändern.',
       action:'Abschließen',onConfirm:()=>completeEvent(ev.id)}),{icon:'lock'}),
     locked&&btn('secondary','Als Text exportieren',()=>exportTXT(ev.id),{icon:'download'}),
+    IS_ADMIN&&S.seasons.length>1&&btn('secondary','Saison ändern',()=>openMoveEvent(ev)),
     IS_ADMIN&&btn('danger','Event löschen',()=>confirmSheet({
       title:'Event löschen?',
       text:ev.name+' wird mit allen Runden und Ergebnissen entfernt. Die Ergebnisse verschwinden aus der Rangliste. Das lässt sich nicht rückgängig machen.',
@@ -102,5 +122,7 @@ export const renderDetail=()=>{
   ].filter(Boolean);
 
   return h('main',{class:'app-screen pc-enter'},head,roster,start,roundBlocks,
-    actions.length>0&&section('Event',null,h('div',{class:'app-actions'},actions)));
+    section('Event',null,
+      h('p',{class:'app-note',style:{margin:'0 0 var(--space-3)'},text:'Saison: '+(S.seasons.find(s=>s.id===ev.sid)?.name||'unbekannt')}),
+      actions.length>0&&h('div',{class:'app-actions'},actions)));
 };

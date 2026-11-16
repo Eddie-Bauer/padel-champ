@@ -2,6 +2,7 @@
 import {h,btn,badge,headline,dayOfMonth,monthShort,today} from '../dom.js';
 import {S,IS_PLAYER,activeSeason,getMat,getEP,curRnd,notify} from '../store.js';
 import {addEvent} from '../actions.js';
+import {seasonForDate} from '../logic.js';
 import {openSheet} from '../sheet.js';
 
 const statusBadge=ev=>ev.status==='active'?badge('live','Live')
@@ -25,6 +26,9 @@ export const eventCard=ev=>{
 
 export const openNewEvent=()=>{
   const input=h('input',{class:'pc-input pc-num',type:'date',value:today()});
+  const hint=h('span',{class:'pc-field__hint'});
+  const showSeason=()=>{const s=input.value&&seasonForDate(S.seasons,input.value);hint.textContent=s?'Kommt in die Saison '+s.name+'.':'';};
+  input.addEventListener('input',showSeason);showSeason();
   const create=()=>{
     if(!input.value)return;
     const id=addEvent(input.value);
@@ -35,8 +39,7 @@ export const openNewEvent=()=>{
   const sheet=openSheet({
     title:'Neuer Padel Day',
     body:h('label',{class:'pc-field'},
-      h('span',{class:'pc-field__label',text:'Datum'}),input,
-      h('span',{class:'pc-field__hint',text:'Der Padel Day wird in der Saison '+activeSeason().name+' angelegt.'})),
+      h('span',{class:'pc-field__label',text:'Datum'}),input,hint),
     foot:[btn('secondary','Abbrechen',()=>sheet.close()),btn('primary','Anlegen',create)],
   });
   return sheet;

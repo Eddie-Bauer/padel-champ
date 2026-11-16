@@ -54,6 +54,13 @@ export const withoutEvent=(state,eid)=>{
   };
 };
 
+// The season a day belongs to: the one whose start and end contain it (the
+// active one if several do), else the active season, else the first.
+export const seasonForDate=(seasons,date)=>{
+  const hits=seasons.filter(s=>s.startDate&&s.endDate&&s.startDate<=date&&date<=s.endDate);
+  return hits.find(s=>s.isActive)||hits[0]||seasons.find(s=>s.isActive)||seasons[0]||null;
+};
+
 // To win the season a player needs at least this many matches.
 export const MIN_MATCHES=10;
 
