@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, colorIndex } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -69,10 +69,12 @@ test('calcStandings: a scheduled match changes nothing', () => {
   assert.ok(rows.every(r => r.mp === 0 && r.pts === 0));
 });
 
-test('no-winner match counts as a loss for all four (current behaviour, changes in phase 2)', () => {
+test('a match without a winner (0:0, did not take place) counts for nobody', () => {
   const m = match({ t1s1: 0, t2s1: 0, t1s2: null, t2s2: null, winnerTeamId: null });
   const rows = calcStandings(fixture({ matches: [m] }), 's1');
-  assert.deepEqual(rows.map(r => r.l), [1, 1, 1, 1]);
+  assert.ok(rows.every(r => r.mp === 0 && r.l === 0 && r.w === 0 && r.pts === 0 && r.gd === 0));
+  const withLossPoints = calcStandings(fixture({ matches: [m], settings: { ptsWin: 3, ptsLoss: 1 } }), 's1');
+  assert.ok(withLossPoints.every(r => r.pts === 0));
 });
 
 test('calcStandings: a team with a deleted player does not throw and gets no row', () => {
@@ -124,4 +126,52 @@ test('roundRobin pairs everyone once, in loop order', () => {
 
 test('teamName joins first names', () => {
   assert.equal(teamName({ name: 'Anna Muster' }, { name: 'Ben' }), 'Anna / Ben');
+});
+
+// ── checkScore ──
+const S = (...pairs) => pairs.map(([t1, t2]) => ({ t1, t2 }));
+
+test('checkScore: 0:0 means the match did not take place', () => {
+  assert.deepEqual(checkScore(S([0, 0])), { ok: true, notPlayed: true, error: null });
+  assert.deepEqual(checkScore(S([0, 0], [0, 0])), { ok: true, notPlayed: true, error: null });
+});
+
+test('checkScore: a result with a winner is accepted', () => {
+  assert.deepEqual(checkScore(S([6, 4])), { ok: true, notPlayed: false, error: null });
+  assert.equal(checkScore(S([6, 4], [4, 6], [10, 8])).ok, true);
+  assert.equal(checkScore(S([4, 6], [3, 6])).ok, true);
+});
+
+test('checkScore: a tied set is refused and named', () => {
+  const r = checkScore(S([6, 4], [5, 5]));
+  assert.equal(r.ok, false);
+  assert.match(r.error, /Satz 2/);
+  assert.equal(checkScore(S([7, 7])).ok, false);
+  assert.equal(checkScore(S([6, 4], [0, 0])).ok, false);
+});
+
+test('checkScore: one set each without a decider is refused', () => {
+  const r = checkScore(S([6, 4], [4, 6]));
+  assert.equal(r.ok, false);
+  assert.match(r.error, /Sieger/);
+});
+
+test('checkScore: no sets at all is refused', () => {
+  assert.equal(checkScore([]).ok, false);
+});
+
+// ── colorIndex ──
+test('colorIndex keeps the old colour for numeric ids', () => {
+  assert.equal(colorIndex('3', 8), 3);
+  assert.equal(colorIndex('11', 8), 3);
+  assert.equal(colorIndex(undefined, 8), 0);
+});
+
+test('colorIndex gives new random ids a stable colour in range', () => {
+  const ids = ['3f2a8c1e-0b7d-4c55-9a10-6d2e8f4b1c77', 'a81b2c3d-1111-4222-8333-444455556666', 's1'];
+  for (const id of ids) {
+    const i = colorIndex(id, 8);
+    assert.ok(Number.isInteger(i) && i >= 0 && i < 8, id);
+    assert.equal(colorIndex(id, 8), i);
+  }
 });

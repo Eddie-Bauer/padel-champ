@@ -1,6 +1,6 @@
 import {C} from '../theme.js';
 import {el,div,span} from '../dom.js';
-import {urlKey,S,displaySeason,standings} from '../store.js';
+import {api,S,displaySeason,standings} from '../store.js';
 
 // ── KI Analyse ────────────────────────────────────────────────
 export const openKiAnalyse=async()=>{
@@ -30,7 +30,7 @@ export const openKiAnalyse=async()=>{
 
   // Team chemistry: win/loss per player pair across all season events
   const pairStats={};
-  S.matches.filter(m=>evs.find(e=>e.id===m.eid)&&m.status==='completed').forEach(m=>{
+  S.matches.filter(m=>evs.find(e=>e.id===m.eid)&&m.status==='completed'&&m.winnerTeamId).forEach(m=>{
     const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);
     if(!t1||!t2)return;
     const gp=id=>S.players.find(p=>p.id===id)?.name?.split(' ')[0]||'?';
@@ -72,13 +72,7 @@ export const openKiAnalyse=async()=>{
     };
 
     try{
-      const resp=await fetch('https://yldwlgeabmwdjefeerpr.supabase.co/functions/v1/dynamic-endpoint',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:prompts[type],playerKey:urlKey})
-      });
-      const data=await resp.json();
-      if(data.error){throw new Error(data.error.message||data.error);}
+      const data=await api({action:'analyze',prompt:prompts[type]});
       const text=data?.candidates?.[0]?.content?.parts?.[0]?.text||'Keine Antwort erhalten.';
       resultDiv.innerHTML='';
       text.split('\n').filter(l=>l.trim()).forEach(line=>{const p=document.createElement('p');p.textContent=line;p.style.marginBottom='10px';resultDiv.appendChild(p);});

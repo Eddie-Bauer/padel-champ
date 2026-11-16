@@ -2,6 +2,12 @@ import {fmtDate,ymd} from './dom.js';
 import {uid,S,displaySeason,getEP,matByRnd,standings,mut,IS_ADMIN} from './store.js';
 import {teamName,drawTeams,roundRobin,withoutEvent} from './logic.js';
 
+// Players are never deleted, so old results keep their names. Admin only.
+export const setPlayerActive=(id,active)=>{
+  if(!IS_ADMIN){alert('🔒 Nur mit Admin-URL können Spieler geändert werden.');return;}
+  mut(()=>{const p=S.players.find(x=>x.id===id);if(p)p.isActive=active;});
+};
+
 // Removes an event with all its rounds and results. Admin only.
 export const deleteEvent=(eid)=>{
   if(!IS_ADMIN){alert('🔒 Nur mit Admin-URL können Events gelöscht werden.');return;}
@@ -69,7 +75,7 @@ export const exportTXT=(eid)=>{
       const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);if(!t1||!t2)return;
       const n1=(gp(t1.player1Id)?.name||'?')+' + '+(gp(t1.player2Id)?.name||'?');
       const n2=(gp(t2.player1Id)?.name||'?')+' + '+(gp(t2.player2Id)?.name||'?');
-      const won=m.winnerTeamId===m.team1Id?n1:m.winnerTeamId===m.team2Id?n2:'Unentschieden';
+      const won=m.winnerTeamId===m.team1Id?n1:m.winnerTeamId===m.team2Id?n2:'nicht gespielt';
       lines.push(n1+' vs '+n2+' — '+fmtScore(m)+' (Sieg: '+won+')');
     });
     if(rm.length===0)lines.push('(keine abgeschlossenen Matches)');

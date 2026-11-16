@@ -1,6 +1,6 @@
 import {C,setTheme} from '../theme.js';
 import {el,div,span} from '../dom.js';
-import {uid,IS_ADMIN,SK,S,mut} from '../store.js';
+import {uid,IS_ADMIN,S,mut} from '../store.js';
 
 // ── Settings ──────────────────────────────────────────────────
 export const renderSettings=()=>{
@@ -82,7 +82,7 @@ export const renderSettings=()=>{
   const db1=el('button',{class:'press btn-red',style:{width:'100%',padding:'11px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer',marginBottom:'8px'}},'Spieldaten löschen');
   db1.onclick=()=>{if(confirm('Alle Spieldaten löschen? Spieler bleiben erhalten.'))mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};});};
   const db2=el('button',{class:'press btn-red',style:{width:'100%',padding:'11px',borderRadius:'12px',fontSize:'14px',fontWeight:'600',cursor:'pointer'}},'Alles löschen & neu starten');
-  db2.onclick=()=>{if(confirm('ALLES löschen inkl. Spieler und Einstellungen? Kann nicht rückgängig gemacht werden.')){localStorage.removeItem(SK);location.reload();}};
+  db2.onclick=()=>{if(confirm('ALLES löschen inkl. Spieler und Einstellungen? Kann nicht rückgängig gemacht werden.'))mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};S.players=[];S.settings={ptsWin:3,ptsLoss:0};});};
   rc.appendChild(db1);rc.appendChild(db2);if(IS_ADMIN)s.appendChild(rc);
   return s;
 };

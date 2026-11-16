@@ -1,7 +1,7 @@
 import {C} from '../theme.js';
 import {abg,afg,el,div,span,mkAvatar} from '../dom.js';
 import {S,mut} from '../store.js';
-import {calcWinner} from '../logic.js';
+import {calcWinner,checkScore} from '../logic.js';
 
 // ─── Match Card ───────────────────────────────────────────────
 export const mkMatchCard=(match,onPress)=>{
@@ -20,7 +20,9 @@ export const mkMatchCard=(match,onPress)=>{
   t1div.appendChild(t1avs);t1div.appendChild(span(t1.name,{fontSize:'11px',fontWeight:'500',color:done&&w===t1.id?C.green:C.sub}));
   // Score
   const sdiv=div('',{textAlign:'center',minWidth:'96px',padding:'0 6px'});
-  if(done){
+  if(done&&!w){
+    const np=div('',{background:C.bg,borderRadius:'8px',padding:'4px 10px'});np.appendChild(span('Nicht gespielt',{fontSize:'11px',fontWeight:'600',color:C.muted}));sdiv.appendChild(np);
+  } else if(done){
     const sc=document.createElement('span');sc.className='mono';Object.assign(sc.style,{fontSize:'17px',color:C.text,letterSpacing:'1px'});
     sets.forEach(([a,b],i)=>{
       if(i>0){const dot=document.createElement('span');dot.textContent='·';Object.assign(dot.style,{color:C.border,margin:'0 2px'});sc.appendChild(dot);}
@@ -111,6 +113,9 @@ export const openScoreModal=(match)=>{
     // Save button
     const sv=el('button',{class:'press',style:{width:'100%',height:'52px',borderRadius:'14px',border:'none',background:C.accent,color:'#fff',fontSize:'16px',fontWeight:'700',cursor:'pointer'}},'Speichern');
     sv.onclick=()=>{
+      const chk=checkScore(sets);
+      if(!chk.ok){alert('⚠️ '+chk.error);return;}
+      if(chk.notPlayed)sets.splice(1);
       mut(()=>{
         const m=S.matches.find(x=>x.id===match.id);if(!m)return;
         m.t1s1=sets[0]?.t1??null;m.t2s1=sets[0]?.t2??null;

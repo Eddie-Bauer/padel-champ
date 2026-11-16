@@ -1,10 +1,11 @@
 import {C} from './theme.js';
+import {colorIndex} from './logic.js';
 
 // ─── Avatar colours ───────────────────────────────────────────
 export const ABG=['#DBEAFE','#D1FAE5','#FEE2E2','#FEF3C7','#EDE9FE','#FCE7F3','#CFFAFE','#F3F4F6'];
 export const AFG=['#1D4ED8','#065F46','#991B1B','#92400E','#5B21B6','#9D174D','#164E63','#374151'];
-export const abg=id=>ABG[Math.abs(parseInt(id||0))%ABG.length];
-export const afg=id=>AFG[Math.abs(parseInt(id||0))%AFG.length];
+export const abg=id=>ABG[colorIndex(id,ABG.length)];
+export const afg=id=>AFG[colorIndex(id,AFG.length)];
 export const ini=n=>(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 
 export const fmtDate=(d,opts)=>new Date(d+'T12:00:00').toLocaleDateString('de-CH',opts||{day:'numeric',month:'long',year:'numeric'});

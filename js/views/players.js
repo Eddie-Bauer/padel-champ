@@ -1,6 +1,7 @@
 import {C} from '../theme.js';
 import {el,div,span,mkAvatar} from '../dom.js';
-import {uid,S,standings,mut} from '../store.js';
+import {uid,S,standings,mut,IS_ADMIN} from '../store.js';
+import {setPlayerActive} from '../actions.js';
 
 // ── Spieler ───────────────────────────────────────────────────
 export const renderPlayers=()=>{
@@ -27,8 +28,22 @@ export const renderPlayers=()=>{
     const inf=div('',{flex:'1'});inf.appendChild(span(p.name,{fontSize:'15px',fontWeight:'600',color:C.text,display:'block'}));inf.appendChild(span(x?x.pts+' Pkt · Rang '+x.rank+' · '+x.w+'S '+x.l+'N':'Noch keine Spiele',{fontSize:'12px',color:C.muted,display:'block',marginTop:'1px'}));row.appendChild(inf);
     if(x&&x.rank===1)row.appendChild(span('🏆',{fontSize:'20px'}));
     const delBtn=el('button',{class:'press',style:{background:C.redBg,border:'1px solid '+C.red+'30',borderRadius:'8px',width:'32px',height:'32px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0'}},'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="'+C.red+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>');
-    delBtn.onclick=()=>{if(confirm(p.name+' wirklich löschen?'))mut(()=>S.players=S.players.filter(x=>x.id!==p.id));};
-    row.appendChild(delBtn);card.appendChild(row);s.appendChild(card);
+    delBtn.title='Deaktivieren';
+    delBtn.onclick=()=>{if(confirm(p.name+' deaktivieren? Bisherige Ergebnisse bleiben erhalten.'))setPlayerActive(p.id,false);};
+    if(IS_ADMIN)row.appendChild(delBtn);card.appendChild(row);s.appendChild(card);
   });
+  // Inactive players: kept for old results, can be brought back
+  const inactive=S.players.filter(p=>!p.isActive);
+  if(IS_ADMIN&&inactive.length>0){
+    s.appendChild(span('INAKTIV ('+inactive.length+')',{fontSize:'11px',fontWeight:'600',color:C.muted,letterSpacing:'.5px',display:'block',margin:'18px 0 8px'}));
+    inactive.forEach(p=>{
+      const card=div('card',{marginBottom:'8px',padding:'10px 14px',opacity:'.7'});
+      const row=div('',{display:'flex',alignItems:'center',gap:'12px'});row.appendChild(mkAvatar(p,32));
+      const nm=span(p.name,{fontSize:'14px',fontWeight:'600',color:C.sub});nm.style.flex='1';row.appendChild(nm);
+      const rb=el('button',{class:'press',style:{background:C.accentBg,border:'none',borderRadius:'8px',padding:'6px 12px',color:C.accent,fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Reaktivieren');
+      rb.onclick=()=>setPlayerActive(p.id,true);
+      row.appendChild(rb);card.appendChild(row);s.appendChild(card);
+    });
+  }
   return s;
 };

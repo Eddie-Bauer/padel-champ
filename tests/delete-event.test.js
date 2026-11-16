@@ -1,6 +1,6 @@
-import { test, before } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { installFakeDom } from './helpers/fake-dom.js';
+import { toRows, diffOps } from '../js/sync.js';
 import { withoutEvent } from '../js/logic.js';
 
 const state = () => ({
@@ -32,25 +32,18 @@ test('withoutEvent with an unknown id changes nothing', () => {
 });
 
 // ── server side: rows of a removed event go before the event itself ──
-let calls;
-before(async () => {
-  installFakeDom();
-  calls = [];
-  globalThis.fetch = async (url, opts = {}) => { calls.push((opts.method || 'GET') + ' ' + url.split('/rest/v1/')[1]); return { ok: true, json: async () => [] }; };
-  const { _sbSave } = await import('../js/store.js');
-  const s = withoutEvent(state(), 'e1');
-  await _sbSave({ players: [{ id: '1', name: 'P1', isActive: true }], seasons: [], settings: { ptsWin: 3, ptsLoss: 0 }, ...s });
+const full = () => ({
+  players: [{ id: '1', name: 'P1', isActive: true }], seasons: [], settings: { ptsWin: 3, ptsLoss: 0 },
+  events: [{ id: 'e1', sid: 's1' }, { id: 'e2', sid: 's1' }],
+  evP: [{ eid: 'e1', pid: '1' }],
+  teams: [{ id: 't1', eid: 'e1' }],
+  matches: [{ id: 'm1', eid: 'e1' }],
+  byeMap: { e1: { 1: '1' } },
 });
 
-test('saving deletes the rows of removed events before the events', () => {
-  const at = q => { const i = calls.indexOf(q); assert.notEqual(i, -1, 'missing call: ' + q); return i; };
-  const ev = at('DELETE events?id=not.in.(e2)');
-  for (const t of ['matches', 'teams', 'event_players', 'bye_map']) {
-    assert.ok(at(`DELETE ${t}?event_id=not.in.(e2)`) < ev, t + ' must be cleared first');
-  }
-});
-
-test('saving still writes the remaining event before its teams and matches', () => {
-  const i = calls.indexOf('POST events');
-  assert.ok(i !== -1 && i < calls.indexOf('POST teams') && i < calls.indexOf('POST matches'));
+test('removing an event sends deletes for its rows first, the event last', () => {
+  const before = full();
+  const after = { ...before, ...withoutEvent(before, 'e1') };
+  const ops = diffOps(toRows(before), toRows(after)).map(o => o.a + ' ' + o.t);
+  assert.deepEqual(ops, ['delete matches', 'delete teams', 'delete bye_map', 'delete event_players', 'delete events']);
 });
