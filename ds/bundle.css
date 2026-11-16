@@ -88,7 +88,7 @@
 .pc-badge--live { background: transparent; color: var(--live); padding-left: 0; letter-spacing: .06em; text-transform: uppercase; }
 .pc-badge--live::before { width: 8px; height: 8px; animation: pc-pulse 1.6s ease-in-out infinite; }
 .pc-badge--done { background: var(--accent-soft); color: var(--accent-ink); }
-.pc-badge--locked { background: var(--warn-soft); color: var(--warn); }
+.pc-badge--locked { background: var(--accent-soft); color: var(--accent-ink); }
 .pc-badge--win { background: var(--copper); color: var(--on-copper); }
 .pc-badge--win::before { display: none; }
 @keyframes pc-pulse { 50% { opacity: .35; } }
@@ -98,16 +98,25 @@
 .pc-card { background: var(--surface-100); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 
 /* ── MatchCard ────────────────────────────────────────── */
-.pc-match { display: grid; grid-template-columns: 1fr auto; gap: var(--space-2) var(--space-3); align-items: center;
+.pc-match { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--space-2) var(--space-4); align-items: center;
   padding: var(--space-3) var(--space-4); min-height: 88px; cursor: pointer; }
 .pc-match__meta { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--muted); }
-.pc-match__teams { display: grid; gap: var(--space-1); min-width: 0; font-size: 15px; }
-.pc-match__score { display: grid; gap: var(--space-1); justify-items: end; font-family: var(--font-display); font-size: 22px; line-height: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.pc-match__score span { min-width: 36px; padding: 0 var(--space-2); border-radius: var(--radius-sm); text-align: center; color: var(--muted); }
-.pc-match__score .is-win { background: var(--copper); color: var(--on-copper); }
+/* Team A on the left, the result in the middle, team B on the right; each
+   team's two names stand one below the other. */
+.pc-match > .pc-team { font-size: 15px; line-height: 20px; }
+.pc-match > .pc-team::before { display: none; }
+.pc-match > .pc-team--a { justify-self: end; }
+.pc-match > .pc-team--b { justify-self: start; }
+.pc-team__names--stack { display: grid; gap: 2px; white-space: normal; }
+.pc-team__names--stack > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-match__score { display: flex; gap: var(--space-2); align-items: center; font-family: var(--font-display); font-size: 22px; line-height: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pc-match__score span { order: 1; display: grid; place-items: center; width: 40px; height: 32px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); line-height: 1; color: var(--muted); }
+.pc-match__score span:last-child { order: 3; }
+.pc-match__score::before { content: ":"; order: 2; color: var(--muted); font-weight: 600; line-height: 1; }
+.pc-match__score .is-win { background: var(--copper); border-color: var(--copper); color: var(--on-copper); }
 .pc-match--live { border-color: var(--live); }
 .pc-match--live .pc-match__score span { color: var(--ink); }
-.pc-match--planned .pc-match__score span { color: var(--faint); font-weight: 500; }
+.pc-match--planned .pc-match__score span { color: var(--faint); font-weight: 500; border-color: var(--line); }
 
 /* ── EventCard ────────────────────────────────────────── */
 .pc-event { display: grid; grid-template-columns: 52px 1fr auto; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); min-height: 76px; cursor: pointer; }
@@ -117,6 +126,12 @@
 .pc-event__title { font-size: 16px; line-height: 22px; font-weight: 600; }
 .pc-event__sub { font-size: 14px; line-height: 20px; color: var(--muted); }
 .pc-event__chev { color: var(--muted); }
+/* On event and match cards the status is a tab flush with the top right
+   corner. Its bottom left corner has the card's own radius, so the two
+   rounded corners of the tab mirror each other. */
+.pc-event, .pc-match { position: relative; overflow: hidden; }
+.pc-event > .pc-badge, .pc-match__meta > .pc-badge { position: absolute; top: 0; right: 0; height: 28px; padding: 0 var(--space-3); border-radius: 0 0 0 var(--radius-lg); }
+.pc-event__title, .pc-match__meta { padding-right: 116px; }
 
 /* ── Progress ─────────────────────────────────────────── */
 .pc-progress { height: 6px; border-radius: var(--radius-sm); background: var(--surface-200); overflow: hidden; }
@@ -184,8 +199,8 @@
 /* ── Headline highlight ───────────────────────────────── */
 .pc-headline { font-family: var(--font-display); font-size: 40px; line-height: 44px; font-weight: 700; color: var(--ink); margin: 0; }
 .pc-headline small { display: block; margin-bottom: var(--space-2); font-family: var(--font-sans); font-size: 11px; line-height: 14px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.pc-hl { color: var(--ink); background: linear-gradient(transparent 58%, var(--copper) 58%, var(--copper) 92%, transparent 92%); padding: 0 .06em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-[data-theme="dark"] .pc-hl, .pc-hero .pc-hl { color: var(--copper); background: none; padding: 0; }
+.pc-hl { color: var(--on-copper); background: var(--copper); padding: 0 .14em; border-radius: var(--radius-sm); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+[data-theme="dark"] .pc-hl, .pc-hero .pc-hl { color: var(--copper); background: none; padding: 0; border-radius: 0; }
 
 /* ── Hero card ────────────────────────────────────────── */
 .pc-hero { background: var(--hero); color: var(--on-hero); border-radius: var(--radius-hero); padding: var(--space-5); border: 1px solid var(--hero-tile); }
