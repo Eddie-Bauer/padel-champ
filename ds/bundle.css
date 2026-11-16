@@ -117,7 +117,10 @@
 .pc-event__title { font-size: 16px; line-height: 22px; font-weight: 600; }
 .pc-event__sub { font-size: 14px; line-height: 20px; color: var(--muted); }
 .pc-event__chev { color: var(--muted); }
-.pc-event > .pc-badge { align-self: start; }
+/* The status is a tab flush with the card's top right corner. */
+.pc-event { position: relative; overflow: hidden; }
+.pc-event > .pc-badge { position: absolute; top: 0; right: 0; height: 28px; padding: 0 var(--space-3); border-radius: 0 0 0 var(--radius-md); }
+.pc-event__title { padding-right: 116px; }
 
 /* ── Progress ─────────────────────────────────────────── */
 .pc-progress { height: 6px; border-radius: var(--radius-sm); background: var(--surface-200); overflow: hidden; }
