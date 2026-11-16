@@ -28,6 +28,19 @@ export const roundRobin=ids=>{
   return out;
 };
 
+// The parts of the state that change when an event is removed with all its
+// participants, teams, matches and byes. Does not modify its input.
+export const withoutEvent=(state,eid)=>{
+  const byeMap={...state.byeMap};delete byeMap[eid];
+  return{
+    events:state.events.filter(e=>e.id!==eid),
+    evP:state.evP.filter(x=>x.eid!==eid),
+    teams:state.teams.filter(t=>t.eid!==eid),
+    matches:state.matches.filter(m=>m.eid!==eid),
+    byeMap,
+  };
+};
+
 // Season ranking per player. state = {players, events, teams, matches, settings}
 export const calcStandings=(state,seasonId)=>{
   const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));

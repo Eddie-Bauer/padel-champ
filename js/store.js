@@ -57,7 +57,6 @@ export const _sbSave=async(payload)=>{
     await ups('seasons',payload.seasons.map(s=>({id:s.id,name:s.name,start_date:s.startDate,end_date:s.endDate,is_active:s.isActive})));
     const sq=notIn(payload.seasons.map(s=>s.id));if(sq)await del('seasons',sq);
     await ups('events',payload.events.map(e=>({id:e.id,season_id:e.sid,date:e.date,name:e.name,status:e.status||'scheduled'})));
-    const eq2=notIn(payload.events.map(e=>e.id));if(eq2)await del('events',eq2);
     if(payload.events.length){
       await del('event_players',`event_id=in.(${payload.events.map(e=>e.id).join(',')})`);
       await ups('event_players',payload.evP.map(e=>({event_id:e.eid,player_id:e.pid})));
@@ -72,6 +71,12 @@ export const _sbSave=async(payload)=>{
       Object.entries(payload.byeMap||{}).forEach(([eid,rnds])=>{Object.entries(rnds).forEach(([rnd,pid])=>{if(pid)br.push({event_id:eid,rnd:parseInt(rnd),player_id:pid});});});
       await ups('bye_map',br);
     }
+    // Removed events go last, after everything that points at them.
+    if(payload.events.length){
+      const gone=`event_id=not.in.(${payload.events.map(e=>e.id).join(',')})`;
+      for(const t of ['matches','teams','event_players','bye_map'])await del(t,gone);
+    }
+    const eq2=notIn(payload.events.map(e=>e.id));if(eq2)await del('events',eq2);
     await fetch(`${U}settings?id=eq.1`,{method:'PATCH',headers:{...SB_HDR,'Prefer':'return=minimal'},body:JSON.stringify({pts_win:payload.settings.ptsWin,pts_loss:payload.settings.ptsLoss||0})});
   }catch(e){console.warn('Supabase save error:',e);}
 };

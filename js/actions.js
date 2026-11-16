@@ -1,6 +1,14 @@
 import {fmtDate,ymd} from './dom.js';
-import {uid,S,displaySeason,getEP,matByRnd,standings,mut} from './store.js';
-import {teamName,drawTeams,roundRobin} from './logic.js';
+import {uid,S,displaySeason,getEP,matByRnd,standings,mut,IS_ADMIN} from './store.js';
+import {teamName,drawTeams,roundRobin,withoutEvent} from './logic.js';
+
+// Removes an event with all its rounds and results. Admin only.
+export const deleteEvent=(eid)=>{
+  if(!IS_ADMIN){alert('🔒 Nur mit Admin-URL können Events gelöscht werden.');return;}
+  const ev=S.events.find(e=>e.id===eid);if(!ev)return;
+  if(!confirm('«'+ev.name+'» mit allen Runden und Ergebnissen löschen? Die Ergebnisse verschwinden aus der Rangliste. Kann nicht rückgängig gemacht werden.'))return;
+  mut(()=>{Object.assign(S,withoutEvent(S,eid));S.selEv=null;});
+};
 
 // ─── Actions ─────────────────────────────────────────────────
 export const genTeams=(eid,rnd)=>{

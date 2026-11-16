@@ -1,7 +1,7 @@
 import {C} from '../theme.js';
 import {abg,afg,fmtDateShort,el,div,span,mkAvatar,sectionHeader} from '../dom.js';
-import {S,getEP,getTeams,getMat,curRnd,matByRnd,teamByRnd,rndDone,getEv,notify,mut,IS_PLAYER} from '../store.js';
-import {genTeams,genMatches,deleteMatch,exportTXT} from '../actions.js';
+import {S,getEP,getTeams,getMat,curRnd,matByRnd,teamByRnd,rndDone,getEv,notify,mut,IS_PLAYER,IS_ADMIN} from '../store.js';
+import {genTeams,genMatches,deleteMatch,deleteEvent,exportTXT} from '../actions.js';
 import {mkMatchCard,openScoreModal} from './match.js';
 import {openTeamBuilder} from './teambuilder.js';
 import {renderEvents} from './events.js';
@@ -30,6 +30,7 @@ export const renderDetail=()=>{
   const badge=div('badge',{background:st.bg});if(ev.status==='active'){const dot=div('',{width:'6px',height:'6px',borderRadius:'3px',background:C.green});badge.appendChild(dot);}badge.appendChild(span(st.label,{color:st.color}));badgeCol.appendChild(badge);
   if(ev.status==='active'){const ab=el('button',{class:'press',style:{fontSize:'12px',fontWeight:'600',color:C.red,background:C.redBg,border:'1px solid '+C.red+'30',borderRadius:'8px',padding:'4px 10px',cursor:'pointer'}},'Event abschliessen ✕');ab.onclick=()=>mut(()=>{ev.status='completed';});badgeCol.appendChild(ab);}
   if(ev.status==='completed'){const tb=el('button',{class:'press',style:{fontSize:'12px',fontWeight:'600',color:C.green,background:C.greenBg,border:'1px solid '+C.green+'30',borderRadius:'8px',padding:'4px 10px',cursor:'pointer'}},'↓ TXT');tb.onclick=()=>exportTXT(ev.id);badgeCol.appendChild(tb);}
+  if(IS_ADMIN){const db=el('button',{class:'press',style:{fontSize:'12px',fontWeight:'600',color:C.red,background:'none',border:'1px solid '+C.red+'30',borderRadius:'8px',padding:'4px 10px',cursor:'pointer'}},'Event löschen');db.onclick=()=>deleteEvent(ev.id);badgeCol.appendChild(db);}
   topRow.appendChild(titleDiv);topRow.appendChild(badgeCol);s.appendChild(topRow);
 
   // Progress bar
