@@ -77,6 +77,20 @@ test('drawing teams for a new round sends only the new rows', async () => {
   assert.match(sent[0].row.id, /^[0-9a-f-]{36}$/);
 });
 
+test('deactivating a player keeps the player and sends one change', async () => {
+  const { setPlayerActive } = await import('../js/actions.js');
+  sent.length = 0;
+  setPlayerActive('5', false);
+  await new Promise(r => setTimeout(r, 0));
+  assert.equal(store.S.players.length, 5);
+  assert.equal(store.S.players.find(p => p.id === '5').isActive, false);
+  assert.equal(store.standings().length, 4);
+  assert.deepEqual(sent, [{ t: 'players', a: 'upsert', row: { id: '5', name: 'P5', is_active: false } }]);
+  setPlayerActive('5', true);
+  assert.equal(store.standings().length, 5);
+  assert.doesNotThrow(() => main.setTab(3));
+});
+
 test('index.html warns when opened as a file and has no inline nav handlers', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(html.includes("location.protocol==='file:'"));

@@ -5,6 +5,28 @@ export const shuf=(arr,rnd=Math.random)=>{const a=[...arr];for(let i=a.length-1;
 
 export const calcWinner=m=>{let s1=0,s2=0;[[m.t1s1,m.t2s1],[m.t1s2,m.t2s2],[m.t1s3,m.t2s3]].forEach(([a,b])=>{if(a!=null&&b!=null){if(a>b)s1++;else if(b>a)s2++;}});return s1>s2?m.team1Id:s2>s1?m.team2Id:null;};
 
+// Checks a result before it is saved. sets = [{t1, t2}, ...]
+// All sets 0:0 means "did not take place". Anything else needs a winner.
+export const checkScore=sets=>{
+  const res=(ok,notPlayed,error)=>({ok,notPlayed,error});
+  if(!sets.length)return res(false,false,'Kein Ergebnis eingetragen.');
+  if(sets.every(s=>s.t1===0&&s.t2===0))return res(true,true,null);
+  const tie=sets.findIndex(s=>s.t1===s.t2);
+  if(tie>=0)return res(false,false,'Satz '+(tie+1)+' ist unentschieden. Bitte korrigieren.');
+  const w1=sets.filter(s=>s.t1>s.t2).length;
+  if(w1*2===sets.length)return res(false,false,'Kein Sieger: Beide Teams haben gleich viele Sätze. Bitte einen Entscheidungssatz eintragen.');
+  return res(true,false,null);
+};
+
+// Position in a colour list for an id. Numeric ids keep the colour they
+// always had; other ids (random ones) get a stable one from their text.
+export const colorIndex=(id,n)=>{
+  const s=String(id??0);
+  if(/^\d+$/.test(s))return parseInt(s)%n;
+  let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))>>>0;
+  return h%n;
+};
+
 export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' / '+p2.name.split(' ')[0];
 
 // Random pairs. With an odd number one player sits out (bye), but never the
@@ -50,6 +72,8 @@ export const calcStandings=(state,seasonId)=>{
   const cs=(a,b)=>a!=null&&b!=null&&a>b?1:0;
   state.players.filter(p=>p.isActive).forEach(p=>ga(p.id));
   for(const m of cms){
+    // No winner (0:0) means the match did not take place: it counts for nobody.
+    if(m.winnerTeamId!==m.team1Id&&m.winnerTeamId!==m.team2Id)continue;
     const t1=state.teams.find(t=>t.id===m.team1Id),t2=state.teams.find(t=>t.id===m.team2Id);
     if(!t1||!t2)continue;
     const s1=cs(m.t1s1,m.t2s1)+cs(m.t1s2,m.t2s2)+cs(m.t1s3,m.t2s3);

@@ -30,7 +30,7 @@ export const openKiAnalyse=async()=>{
 
   // Team chemistry: win/loss per player pair across all season events
   const pairStats={};
-  S.matches.filter(m=>evs.find(e=>e.id===m.eid)&&m.status==='completed').forEach(m=>{
+  S.matches.filter(m=>evs.find(e=>e.id===m.eid)&&m.status==='completed'&&m.winnerTeamId).forEach(m=>{
     const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);
     if(!t1||!t2)return;
     const gp=id=>S.players.find(p=>p.id===id)?.name?.split(' ')[0]||'?';
