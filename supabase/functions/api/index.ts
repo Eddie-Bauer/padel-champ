@@ -1,3 +1,4 @@
+// @ts-nocheck  (plain JavaScript on purpose, see the note on imports below)
 // PadelChamp "api" Edge Function. The only door to the database.
 //
 // Every request carries the access key in the header "x-pc-key". The key

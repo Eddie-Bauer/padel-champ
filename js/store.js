@@ -106,6 +106,7 @@ export const flush=async()=>{
   if(!ops.length)return;
   saving=true;
   let again=false;
+  const bannerBefore=SAVE_ERROR;
   try{
     await api({action:'ops',ops});
     synced=next;failures=0;SAVE_ERROR=null;again=true;
@@ -126,7 +127,9 @@ export const flush=async()=>{
   }finally{
     saving=false;
   }
-  notify();
+  // Re-render only when the warning banner appears or disappears, so an
+  // open form is not reset just because a save went through.
+  if(SAVE_ERROR!==bannerBefore)notify();
   if(again&&pending().length)return flush();
 };
 
