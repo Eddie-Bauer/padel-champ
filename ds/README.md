@@ -7,7 +7,7 @@ These files are copied unchanged from the design system "PadelChamp"
 - `bundle.css`: the components (`pc-*`)
 - `fonts/`, `licenses/`: Inter and Titillium Web (SIL Open Font License)
 
-Copied on 2026-11-16 from version 1794863662-4670 (accent: copper).
+Copied on 2026-11-16 from version 1794863662-4670 (accent: copper); team colours as in version 1794866730-7445 (pine green and mauve).
 
 Do not edit them here. Change the design system, then copy the files again.
 App-specific layout lives in `css/app.css`.
