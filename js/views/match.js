@@ -11,6 +11,9 @@ const playerName=id=>first(S.players.find(p=>p.id===id)?.name);
 export const teamLabel=team=>playerName(team.player1Id)+' & '+playerName(team.player2Id);
 const setsOf=m=>[[m.t1s1,m.t2s1],[m.t1s2,m.t2s2],[m.t1s3,m.t2s3]].filter(([a,b])=>a!=null&&b!=null);
 const teamRow=(side,label)=>h('span',{class:'pc-team pc-team--'+side},h('span',{class:'pc-team__names',text:label}));
+// In a match card the two names of a team stand one below the other.
+const teamStack=(side,team)=>h('span',{class:'pc-team pc-team--'+side},
+  h('span',{class:'pc-team__names pc-team__names--stack'},h('span',{text:playerName(team.player1Id)}),h('span',{text:playerName(team.player2Id)})));
 
 // ─── MatchCard ────────────────────────────────────────────────
 // One number per team. Sets: the games of a single set, or the sets won
@@ -34,10 +37,11 @@ export const matchCard=(match,onOpen,opts={})=>{
   const status=played?badge('done','Beendet'):done?badge('','Nicht gespielt'):badge('','Geplant');
   const card=h('div',{class:'pc-card pc-match'+(played?'':' pc-match--planned')+(onOpen?'':' app-static')},
     h('div',{class:'pc-match__meta'},h('span',{class:'pc-num',text:(opts.label||'Runde '+match.rnd+' · Spiel '+match.seq)+detail}),status),
-    h('div',{class:'pc-match__teams'},teamRow('a',teamLabel(t1)),teamRow('b',teamLabel(t2))),
+    teamStack('a',t1),
     h('div',{class:'pc-match__score'},
       h('span',{class:played&&w===t1.id?'is-win':null,text:String(a)}),
-      h('span',{class:played&&w===t2.id?'is-win':null,text:String(b)})));
+      h('span',{class:played&&w===t2.id?'is-win':null,text:String(b)})),
+    teamStack('b',t2));
   if(onOpen){
     card.setAttribute('role','button');
     card.setAttribute('tabindex','0');
