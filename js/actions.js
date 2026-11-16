@@ -238,7 +238,7 @@ export const exportTXT=(eid)=>{
       const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);if(!t1||!t2)return;
       const n1=(gp(t1.player1Id)?.name||'?')+' & '+(gp(t1.player2Id)?.name||'?');
       const n2=(gp(t2.player1Id)?.name||'?')+' & '+(gp(t2.player2Id)?.name||'?');
-      const won=m.winnerTeamId===m.team1Id?n1:m.winnerTeamId===m.team2Id?n2:'nicht gespielt';
+      const won=m.winnerTeamId===m.team1Id?n1:m.winnerTeamId===m.team2Id?n2:ev.format==='americano'?'unentschieden':'nicht gespielt';
       lines.push(n1+' vs '+n2+' — '+fmtScore(m)+' (Sieg: '+won+')');
     });
     if(rm.length===0)lines.push('(keine abgeschlossenen Matches)');
