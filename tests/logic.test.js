@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -192,4 +192,35 @@ test('calcStandings: players without a match come after everyone who played', ()
   const rows = calcStandings(s, 's1');
   assert.equal(rows.at(-1).player.id, '5');
   assert.ok(row(rows, '3').rank < row(rows, '5').rank, 'a played 0 % ranks above not played');
+});
+
+// ── minimum matches to be in the ranking ──
+// n matches between t1 (P1, P2) and t2 (P3, P4); t1 wins the first `wins` of them.
+const series = (n, wins) => Array.from({ length: n }, (_, i) => match({ id: 'x' + i, winnerTeamId: i < wins ? 't1' : 't2' }));
+
+test('MIN_MATCHES is 10', () => {
+  assert.equal(MIN_MATCHES, 10);
+});
+
+test('calcStandings: with fewer than 10 matches a player is not in the ranking yet', () => {
+  const nine = calcStandings(fixture({ matches: series(9, 9) }), 's1');
+  assert.ok(nine.every(r => r.qualified === false));
+  const ten = calcStandings(fixture({ matches: series(10, 10) }), 's1');
+  assert.ok(ten.every(r => r.qualified === true));
+});
+
+test('calcStandings: players in the ranking come before those who are not, whatever their win rate', () => {
+  // P1..P4 play 10 matches (P3 and P4 win only 2: 20 %). P5 and P6 win their single match: 100 %.
+  const s = fixture({ players: players(8), matches: series(10, 8) });
+  s.teams.push({ id: 'tE', eid: 'e1', rnd: 1, player1Id: '5', player2Id: '6' }, { id: 'tF', eid: 'e1', rnd: 1, player1Id: '7', player2Id: '8' });
+  s.matches.push(match({ id: 'm2', team1Id: 'tE', team2Id: 'tF', winnerTeamId: 'tE' }));
+  const rows = calcStandings(s, 's1');
+  assert.deepEqual(rows.map(r => r.player.id), ['1', '2', '3', '4', '5', '6', '7', '8']);
+  assert.deepEqual(rows.map(r => r.qualified), [true, true, true, true, false, false, false, false]);
+  assert.deepEqual(rows.map(r => r.rank), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('calcStandings: the minimum can be set per call', () => {
+  const rows = calcStandings(fixture(), 's1', 1);
+  assert.ok(rows.every(r => r.qualified));
 });

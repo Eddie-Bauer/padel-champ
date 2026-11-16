@@ -85,8 +85,8 @@ const dlFile=(content,filename,mime)=>{
 };
 export const exportCSV=()=>{
   const st=standings();
-  const hdr='Rang,Spieler,Siege%,Spiele,Siege,Niederlagen,Satzdiff,Gamediff,Punkte\n';
-  const rows=st.map(s=>`${s.rank},"${s.player.name}",${s.pct}%,${s.mp},${s.w},${s.l},${s.sd},${s.gd},${s.pts}`).join('\n');
+  const hdr='Rang,Spieler,Siege%,Spiele,Siege,Niederlagen,Satzdiff,Gamediff,Punkte,In Wertung\n';
+  const rows=st.map(s=>`${s.rank},"${s.player.name}",${s.pct}%,${s.mp},${s.w},${s.l},${s.sd},${s.gd},${s.pts},${s.qualified?'ja':'nein'}`).join('\n');
   dlFile('﻿'+hdr+rows,'Rangliste_'+displaySeason().name.replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'.csv','text/csv;charset=utf-8');
 };
 export const exportTXT=(eid)=>{

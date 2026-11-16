@@ -3,18 +3,22 @@ import {h,btn,iconBtn,headline,section,first,dm} from '../dom.js';
 import {S,IS_PLAYER,activeSeason,curRnd,matByRnd,getMat,standings,notify} from '../store.js';
 import {matchCard,openScoreSheet} from './match.js';
 import {eventCard,openNewEvent} from './events.js';
+import {MIN_MATCHES} from '../logic.js';
 
 // The one hero card of the screen: who leads the season, in one big number.
 const leaderHero=st=>{
   const lead=st[0],second=st[1];
   if(!lead||lead.mp===0)return null;
-  const gap=second&&second.mp>0?lead.pct-second.pct:null;
-  const sub=gap===null?'Bisher allein in der Wertung.'
-    :gap===0?'Gleiche Siegquote wie '+first(second.player.name)+'.'
-    :gap+(gap===1?' Prozentpunkt':' Prozentpunkte')+' vor '+first(second.player.name)+'.';
+  // Before anyone has the minimum, the leader is only provisional.
+  const rival=second&&second.mp>0&&second.qualified===lead.qualified?second:null;
+  const gap=rival?lead.pct-rival.pct:null;
+  const sub=!lead.qualified?'Vorläufig: Noch niemand hat '+MIN_MATCHES+' Spiele.'
+    :gap===null?'Bisher allein in der Wertung.'
+    :gap===0?'Gleiche Siegquote wie '+first(rival.player.name)+'.'
+    :gap+(gap===1?' Prozentpunkt':' Prozentpunkte')+' vor '+first(rival.player.name)+'.';
   const stat=(value,label)=>h('div',null,h('b',{text:String(value)}),h('span',{text:label}));
   return h('div',{class:'pc-hero'},
-    h('div',{class:'pc-hero__label',text:'Spitzenreiter'}),
+    h('div',{class:'pc-hero__label',text:lead.qualified?'Spitzenreiter':'Vorläufig vorn'}),
     h('div',{class:'pc-herostat__main'},
       h('span',{class:'pc-herostat__num',text:lead.pct+'%'}),
       h('span',{class:'pc-herostat__unit',text:'Siegquote · '+first(lead.player.name)})),

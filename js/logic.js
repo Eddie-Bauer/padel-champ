@@ -54,11 +54,15 @@ export const withoutEvent=(state,eid)=>{
   };
 };
 
-// Season ranking per player, ordered by win rate (not by points): whoever
-// played comes first, then win rate, set difference, game difference, and
-// finally more matches played. state = {players, events, teams, matches, settings}
+// To win the season a player needs at least this many matches.
+export const MIN_MATCHES=10;
+
+// Season ranking per player. Players with at least `minMatches` matches are
+// in the ranking (`qualified`) and come first; the others follow. Within
+// each group: win rate (not points), set difference, game difference, more
+// matches played. Players without any match come last. state = {players, events, teams, matches, settings}
 const rate=r=>r.mp>0?r.w/r.mp:0;
-export const calcStandings=(state,seasonId)=>{
+export const calcStandings=(state,seasonId,minMatches=MIN_MATCHES)=>{
   const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));
   const cms=state.matches.filter(m=>m.status==='completed'&&eids.has(m.eid));
   const acc={};
@@ -79,6 +83,6 @@ export const calcStandings=(state,seasonId)=>{
   }
   return Object.entries(acc).map(([pid,a])=>{
     const mp=a.w+a.l,pts=a.w*state.settings.ptsWin+a.l*(state.settings.ptsLoss||0);
-    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0};
-  }).filter(s=>s.player).sort((a,b)=>(b.mp>0)-(a.mp>0)||rate(b)-rate(a)||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
+    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0,qualified:mp>=minMatches};
+  }).filter(s=>s.player).sort((a,b)=>b.qualified-a.qualified||(b.mp>0)-(a.mp>0)||rate(b)-rate(a)||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
 };

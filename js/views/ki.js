@@ -13,7 +13,7 @@ const buildPrompts=()=>{
   const evs=S.events.filter(e=>e.sid===ds.id).sort((a,b)=>b.date.localeCompare(a.date));
   const played=m=>m.status==='completed'&&m.winnerTeamId;
 
-  const rankingText=st.map((x,i)=>`${i+1}. ${x.player.name}: ${x.pts} Pkt, ${x.w}S/${x.l}N, ${x.pct}% Siegquote, Satzdiff ${x.sd>0?'+':''}${x.sd}`).join('\n');
+  const rankingText=st.map((x,i)=>`${i+1}. ${x.player.name}: ${x.pts} Pkt, ${x.w}S/${x.l}N, ${x.pct}% Siegquote, Satzdiff ${x.sd>0?'+':''}${x.sd}${x.qualified?'':' (noch außer Wertung, zu wenige Spiele)'}`).join('\n');
 
   const evText=evs.slice(0,5).map(ev=>{
     const ms=S.matches.filter(m=>m.eid===ev.id&&played(m));
