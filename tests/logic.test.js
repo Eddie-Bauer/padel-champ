@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, colorIndex } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -125,7 +125,7 @@ test('roundRobin pairs everyone once, in loop order', () => {
 });
 
 test('teamName joins first names', () => {
-  assert.equal(teamName({ name: 'Anna Muster' }, { name: 'Ben' }), 'Anna / Ben');
+  assert.equal(teamName({ name: 'Anna Muster' }, { name: 'Ben' }), 'Anna & Ben');
 });
 
 // ── checkScore ──
@@ -158,20 +158,4 @@ test('checkScore: one set each without a decider is refused', () => {
 
 test('checkScore: no sets at all is refused', () => {
   assert.equal(checkScore([]).ok, false);
-});
-
-// ── colorIndex ──
-test('colorIndex keeps the old colour for numeric ids', () => {
-  assert.equal(colorIndex('3', 8), 3);
-  assert.equal(colorIndex('11', 8), 3);
-  assert.equal(colorIndex(undefined, 8), 0);
-});
-
-test('colorIndex gives new random ids a stable colour in range', () => {
-  const ids = ['3f2a8c1e-0b7d-4c55-9a10-6d2e8f4b1c77', 'a81b2c3d-1111-4222-8333-444455556666', 's1'];
-  for (const id of ids) {
-    const i = colorIndex(id, 8);
-    assert.ok(Number.isInteger(i) && i >= 0 && i < 8, id);
-    assert.equal(colorIndex(id, 8), i);
-  }
 });

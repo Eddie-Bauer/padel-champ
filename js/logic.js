@@ -18,16 +18,7 @@ export const checkScore=sets=>{
   return res(true,false,null);
 };
 
-// Position in a colour list for an id. Numeric ids keep the colour they
-// always had; other ids (random ones) get a stable one from their text.
-export const colorIndex=(id,n)=>{
-  const s=String(id??0);
-  if(/^\d+$/.test(s))return parseInt(s)%n;
-  let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))>>>0;
-  return h%n;
-};
-
-export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' / '+p2.name.split(' ')[0];
+export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' & '+p2.name.split(' ')[0];
 
 // Random pairs. With an odd number one player sits out (bye), but never the
 // player who sat out the round before.

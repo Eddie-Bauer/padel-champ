@@ -35,7 +35,7 @@ const saveLocal=()=>{try{localStorage.setItem(SK,JSON.stringify(Object.fromEntri
 export const S={
   ...emptyData(),
   ...(loadLocal()||{}),
-  tab:       0,
+  tab:       'start',
   selEv:     null,
   selSeason: null,
 };
@@ -116,13 +116,13 @@ export const flush=async()=>{
     if(refused){
       // The server will not take this change. Drop it and show the server's state again.
       failures=0;SAVE_ERROR=null;
-      alert(e.status===403?'🔒 Dieser Zugang darf das nicht ändern. Die Änderung wurde verworfen.':'⚠️ Die Änderung konnte nicht gespeichert werden und wurde verworfen.'+(e.detail?'\n\n'+e.detail:''));
+      alert(e.status===403?'Dieser Zugang darf das nicht ändern. Die Änderung wurde verworfen.':'Die Änderung konnte nicht gespeichert werden und wurde verworfen.'+(e.detail?'\n\n'+e.detail:''));
       saving=false;
       await loadRemote();notify();
       return;
     }
     console.warn('save failed',e);
-    SAVE_ERROR='⚠️ Nicht gespeichert — neuer Versuch läuft';
+    SAVE_ERROR='Nicht gespeichert, neuer Versuch läuft';
     scheduleRetry();
   }finally{
     saving=false;
@@ -155,7 +155,7 @@ export const startSync=()=>{
 
 // ─── Actions ─────────────────────────────────────────────────
 export const mut=(fn)=>{
-  if(ACCESS!=='ok'){alert('📡 Keine Verbindung zum Server. Änderungen sind gerade nicht möglich.');return;}
-  if(!IS_PLAYER){alert('🔒 Read-only. Spieler- oder Admin-URL benötigt.');return;}
+  if(ACCESS!=='ok'){alert('Keine Verbindung zum Server. Änderungen sind gerade nicht möglich.');return;}
+  if(!IS_PLAYER){alert('Nur lesen: Zum Ändern braucht es den Spieler- oder Admin-Link.');return;}
   fn();saveLocal();notify();flush();
 };

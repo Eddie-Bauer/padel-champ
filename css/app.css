@@ -1,0 +1,66 @@
+/* PadelChamp app layout. Loaded after ds/tokens.css and ds/bundle.css.
+   Only what the design system does not provide: the app shell and a few
+   layout helpers. Every colour, size and radius comes from a token; the
+   design system's own classes (pc-*) are never redefined here. */
+
+html, body { height: 100%; margin: 0; }
+body { overflow: hidden; }
+
+/* ── Shell: banner, scrolling screen, tab bar ─────────── */
+.app { height: 100dvh; display: flex; flex-direction: column; }
+.app-screen { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  width: 100%; max-width: var(--size-content); margin: 0 auto;
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4) var(--space-12); }
+@media (min-width: 600px) { .app-screen { padding-left: var(--space-6); padding-right: var(--space-6); } }
+.app--locked .pc-tabbar-wrap { display: none; }
+[hidden] { display: none !important; }
+
+/* ── Screen building blocks ───────────────────────────── */
+.app-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-6); }
+.app-section { margin-top: var(--space-6); }
+.app-section__head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); min-height: 24px; }
+.app-section__head h2 { margin: 0; }
+.app-list { display: grid; gap: var(--space-2); }
+.app-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.app-stack { display: grid; gap: var(--space-4); }
+.app-back { margin: 0 0 var(--space-2) calc(-1 * var(--space-3)); padding: 0 var(--space-3); }
+
+/* A card with free content, and a card that is one row of a list. */
+.app-pad { padding: var(--space-4); }
+.app-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4); min-height: 64px; }
+.app-row__text { flex: 1; min-width: 0; }
+.app-row__text .title-3, .app-row__text .body-sm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-row + .app-row { border-top: 1px solid var(--line); }
+.app-row--dim { opacity: .7; }
+
+/* Initials, same look as the avatar inside a Chip. */
+.app-avatar { width: 34px; height: 34px; flex: none; border-radius: var(--radius-pill); display: grid; place-items: center;
+  background: var(--surface-200); color: var(--ink); font-size: 13px; font-weight: 700; }
+
+/* Chip without an avatar (season filter). */
+.pc-chip.app-chip-text { padding-left: var(--space-4); }
+
+/* A match card that cannot be opened. */
+.pc-match.app-static { cursor: default; }
+/* An event card is a button in the app. */
+button.pc-event { appearance: none; width: 100%; font: inherit; color: inherit; text-align: left; }
+
+.app-empty { text-align: center; padding: var(--space-12) var(--space-4); color: var(--muted); display: grid; gap: var(--space-4); justify-items: center; }
+.app-empty .pc-icon { width: 40px; height: 40px; color: var(--faint); }
+.app-note { font-size: 14px; line-height: 20px; color: var(--muted); margin: var(--space-2) 0 0; }
+.app-error { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--danger); margin: var(--space-3) 0 0; }
+.app-error:empty { display: none; }
+
+/* ── Score sheet ──────────────────────────────────────── */
+.app-set + .app-set { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.app-set__head { display: flex; justify-content: space-between; align-items: center; min-height: var(--size-tap); }
+.app-set .pc-stepper + .pc-stepper__team { margin-top: var(--space-3); }
+.app-sheet-extra { margin-top: var(--space-5); display: grid; gap: var(--space-2); }
+
+/* ── KI-Analyse result ────────────────────────────────── */
+.app-prose p { margin: 0 0 var(--space-3); }
+.app-prose { min-height: 96px; margin-top: var(--space-4); }
+
+/* The banner sits at the very top: keep it clear of the status bar. */
+.app > .pc-banner { padding-top: calc(var(--space-2) + env(safe-area-inset-top)); }
+.app > .pc-banner:not([hidden]) + .app-screen { padding-top: var(--space-6); }

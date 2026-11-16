@@ -1,102 +1,32 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-theme="light">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<meta name="apple-mobile-web-app-title" content="Padel Champ"/>
-<title>Padel Champ</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@500&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;overflow:hidden;font-family:'DM Sans',system-ui,sans-serif;}
-body{background:#F0F2F5;-webkit-tap-highlight-color:transparent;}
-::-webkit-scrollbar{display:none;}
-input,textarea{-webkit-user-select:text;user-select:text;}
-button{touch-action:manipulation;font-family:'DM Sans',system-ui,sans-serif;}
-.mono{font-family:'DM Mono',monospace;}
-@keyframes fu{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
-.fi{animation:fu .18s ease both;}
-.press:active{transform:scale(.95);transition:transform .07s;}
-.sbtn:active{transform:scale(.86)!important;transition:transform .07s;}
-#root{height:100%;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative;overflow:hidden;background:#F0F2F5;}
-.screen{flex:1;overflow-y:auto;padding:0 16px 100px;-webkit-overflow-scrolling:touch;}
-/* Nav */
-#nav{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E4E7EC;display:flex;padding-top:8px;padding-bottom:max(env(safe-area-inset-bottom),8px);box-shadow:0 -2px 12px #0000000D;}
-.navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 0;font-size:10px;font-weight:500;color:#9CA3AF;}
-.navbtn.active{color:#2563EB;font-weight:700;}
-/* Cards */
-.card{background:#fff;border-radius:16px;border:1px solid #E4E7EC;padding:14px 16px;}
-.badge{border-radius:20px;padding:3px 10px;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;}
-/* Buttons */
-.btn-primary{background:#2563EB;color:#fff;border:none;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
-.btn-ghost{background:#F0F2F5;color:#6B7280;border:1px solid #E4E7EC;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
-.btn-sm{padding:6px 12px;border-radius:8px;font-size:12px;}
-body.readonly .viewer-hidden{display:none!important;}
-.btn-green{background:#16A34A;color:#fff;border:none;}
-.btn-red{background:#FEF2F2;color:#DC2626;border:1px solid #DC262630;}
-/* Modal overlay */
-.overlay{position:fixed;inset:0;background:#00000066;z-index:50;display:flex;align-items:flex-end;justify-content:center;}
-.modal{background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:20px 20px;padding-bottom:max(32px,env(safe-area-inset-bottom));box-shadow:0 -4px 32px #0000001A;}
-.modal-scroll{background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:85dvh;display:flex;flex-direction:column;padding-bottom:max(20px,env(safe-area-inset-bottom));}
-/* Forms */
-input[type=text],input[type=date]{width:100%;background:#F0F2F5;border:1.5px solid #E4E7EC;border-radius:10px;padding:10px 12px;color:#111827;font-size:14px;outline:none;font-family:'DM Sans',system-ui;}
-input[type=text]:focus,input[type=date]:focus{border-color:#2563EB;}
-/* Step buttons */
-.stepbtn{width:48px;height:48px;border-radius:24px;border:none;font-size:26px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-/* Progress bar */
-.prog-track{background:#E4E7EC;border-radius:4px;height:6px;overflow:hidden;}
-.prog-fill{height:100%;border-radius:4px;background:#16A34A;transition:width .4s;}
-/* Roster pills */
-.pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px 5px 5px;border-radius:20px;border:1.5px solid #E4E7EC;background:transparent;cursor:pointer;font-size:12px;font-weight:500;color:#6B7280;}
-.pill.on{background:var(--abg);border-color:var(--afg);color:var(--afg);}
-.pill.disabled{opacity:.25;cursor:default;}
-/* Standings grid */
-.sg{display:grid;grid-template-columns:32px 1fr 30px 30px 30px 38px 40px;gap:4px;align-items:center;}
-.sg-hdr{padding:0 4px 8px;}
-.sg-row{padding:10px 0;}
-/* Divider */
-hr{border:none;border-top:1px solid #F3F4F6;margin:0;}
-/* Match card */
-.matchcard{background:#fff;border-radius:12px;padding:11px 13px;border:1px solid #E4E7EC;cursor:pointer;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px #0000000A;}
-/* Event card */
-.evcard{background:#fff;border-radius:14px;border:1px solid #E4E7EC;margin-bottom:8px;overflow:hidden;cursor:pointer;box-shadow:0 1px 4px #0000000A;display:flex;}
-.evcard-bar{width:4px;flex-shrink:0;}
-.evcard-body{flex:1;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;}
-/* Team card */
-.teamcard{background:#fff;border-radius:10px;padding:10px 12px;border:1px solid #E4E7EC;}
-/* Round header */
-.rnd-dot{width:28px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:'DM Mono',monospace;flex-shrink:0;}
-</style>
+<meta name="apple-mobile-web-app-title" content="PadelChamp"/>
+<title>PadelChamp</title>
+<script>
+try{document.documentElement.dataset.theme=localStorage.getItem('pc_theme')==='dark'?'dark':'light';}catch(e){}
+</script>
+<link rel="stylesheet" href="ds/tokens.css"/>
+<link rel="stylesheet" href="ds/bundle.css"/>
+<link rel="stylesheet" href="css/app.css"/>
 </head>
-<body>
-<div id="root">
-  <div id="readonly-banner" style="display:none;background:#F59E0B;color:#fff;text-align:center;padding:6px 12px;font-size:12px;font-weight:600;letter-spacing:.3px;">🔒 Nur lesen — Kein Zugang</div>
-  <div id="save-banner" style="display:none;background:#DC2626;color:#fff;text-align:center;padding:6px 12px;font-size:12px;font-weight:600;letter-spacing:.3px;"></div>
-  <div id="screen" class="screen fi"></div>
-  <nav id="nav">
-    <button class="navbtn press" data-tab="0">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
-      Heute
-    </button>
-    <button class="navbtn press" data-tab="1">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H2V3h4M18 9h4V3h-4M8 21h8M12 17v4M2 3h20M12 17c-5 0-9-4-9-9V3h18v5c0 5-4 9-9 9z"/></svg>
-      Rangliste
-    </button>
-    <button class="navbtn press" data-tab="2">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      Events
-    </button>
-    <button class="navbtn press" data-tab="3">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Spieler
-    </button>
-    <button class="navbtn press" data-tab="4">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      Settings
-    </button>
-  </nav>
+<body class="pc-app">
+<div id="root" class="app">
+  <div id="banner" class="pc-banner" hidden></div>
+  <main id="screen" class="app-screen"></main>
+  <div class="pc-tabbar-wrap">
+    <nav class="pc-tabbar" id="nav" aria-label="Hauptnavigation">
+      <button class="pc-tab" data-tab="start"><svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Start</button>
+      <button class="pc-tab pc-edit-only" data-tab="events"><svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>Events</button>
+      <button class="pc-fab pc-edit-only" id="fab" aria-label="Neuer Padel Day"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="pc-tab" data-tab="standings"><svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 16.5V21M7 3.5h10V9a5 5 0 0 1-10 0z"/><path d="M17 5h3v1.5A3.5 3.5 0 0 1 16.6 10M7 5H4v1.5A3.5 3.5 0 0 0 7.4 10"/></svg>Rangliste</button>
+      <button class="pc-tab pc-edit-only" data-tab="players"><svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>Spieler</button>
+    </nav>
+  </div>
 </div>
 
 <script>
