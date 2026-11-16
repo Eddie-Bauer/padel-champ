@@ -337,3 +337,26 @@ export const restingIn=(playerIds,teams,rnd)=>{
   const playing=new Set(teams.filter(t=>t.rnd===rnd).flatMap(t=>[t.player1Id,t.player2Id]));
   return playerIds.filter(p=>!playing.has(p));
 };
+
+// ─── Setup values with defaults ───────────────────────────────
+
+export const AMERICANO_POINTS=[16,21,24,32];
+
+// The Americano setup that applies for `n` players: what was chosen, limited
+// to what is possible, with defaults for the rest.
+export const americanoConfig=(config,n)=>{
+  const c=config||{},maxCourts=Math.max(1,Math.floor(n/4));
+  const courts=Math.min(Math.max(1,c.courts||maxCourts),maxCourts);
+  const points=AMERICANO_POINTS.includes(c.points)?c.points:21;
+  const rounds=c.rounds>0?c.rounds:(n>=4?americanoRounds(n,courts):0);
+  return{courts,points,rounds};
+};
+
+// The classic setup that applies for a number of teams, or null when there
+// are too few. Without a valid choice: the first setup with semi-finals.
+export const classicConfig=(config,nTeams)=>{
+  const c=config||{},options=classicOptions(nTeams);
+  if(!options.length)return null;
+  const pick=options.find(o=>o.groups===c.groups&&o.advance===c.advance)||options.find(o=>o.playoffSize===4)||options[0];
+  return{...pick,sets:c.sets==='one'?'one':'bo3',thirdPlace:!!c.thirdPlace&&pick.playoffSize>=4};
+};

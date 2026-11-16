@@ -38,6 +38,7 @@ export const S={
   tab:       'start',
   selEv:     null,
   selSeason: null,
+  sub:       null,   // which view inside a tournament (plan/table, groups/playoff)
 };
 
 // ─── Derived getters ──────────────────────────────────────────

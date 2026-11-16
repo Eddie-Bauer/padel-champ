@@ -1,6 +1,7 @@
 import {h,icon,btn,headline} from './dom.js';
 import {S,IS_PLAYER,ACCESS,SAVE_ERROR,getEv,onChange,loadRemote,startSync,flush} from './store.js';
-import {renderDetail,nextOpenMatch} from './views/detail.js';
+import {renderDetail} from './views/detail.js';
+import {nextOpenMatch} from './views/event-parts.js';
 import {renderHome} from './views/home.js';
 import {renderStandings} from './views/standings.js';
 import {renderEvents,openNewEvent} from './views/events.js';
@@ -44,7 +45,7 @@ const updateBanner=()=>{
 const fabAction=()=>{
   const ev=S.tab==='events'&&S.selEv?getEv():null;
   const next=ev&&ev.status!=='completed'?nextOpenMatch(ev.id):null;
-  return next?{label:'Ergebnis eintragen',run:()=>openScoreSheet(next)}:{label:'Neuer Padel Day',run:openNewEvent};
+  return next?{label:'Ergebnis eintragen',run:()=>openScoreSheet(next)}:{label:'Neues Event',run:openNewEvent};
 };
 
 // ─── Main render ──────────────────────────────────────────────
@@ -75,7 +76,7 @@ export const render=()=>{
 };
 
 export const setTab=(t)=>{
-  S.selEv=null;
+  S.selEv=null;S.sub=null;
   S.tab=t;render();
   const screen=document.getElementById('screen');if(screen)screen.scrollTop=0;
 };

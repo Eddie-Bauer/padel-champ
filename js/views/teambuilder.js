@@ -5,7 +5,7 @@ import {drawTeams} from '../logic.js';
 import {applyManualTeams} from '../actions.js';
 import {openSheet} from '../sheet.js';
 
-export const openTeamBuilder=(eid,rnd)=>{
+export const openTeamBuilder=(eid,rnd,title)=>{
   const ep=getEP(eid);
   const isOdd=ep.length%2!==0;
   const prevByeId=(S.byeMap[eid]||{})[rnd-1]||null;
@@ -48,7 +48,7 @@ export const openTeamBuilder=(eid,rnd)=>{
   draw();
 
   const sheet=openSheet({
-    title:'Teams · Runde '+rnd,
+    title:title||'Teams · Runde '+rnd,
     body,
     foot:[btn('secondary','Abbrechen',()=>sheet.close()),confirmBtn],
   });
