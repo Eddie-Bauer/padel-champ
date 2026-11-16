@@ -1,111 +1,48 @@
 import {calcStandings} from './logic.js';
+import {toRows,fromRows,diffOps} from './sync.js';
 
-let _uid=Date.now();
-export const uid=()=>String(++_uid);
+export const uid=()=>crypto.randomUUID();
 
-// ─── Storage ──────────────────────────────────────────────────
-// ─── Admin Key ────────────────────────────────────────────────
-export const ADMIN_HASH='f14e1db32940958d55e859906ed0a51254a3d749231cb573a787c5e742e606a8';
-export const PLAYER_HASH='c53c03452b0e56554d66fa73de1fc44451b07844a8aa445db34bf48ffa198cf2';
+// ─── Access ───────────────────────────────────────────────────
+// The key comes from the URL (?key=...). The server decides what it may do;
+// the app only learns the resulting role.
 export const urlKey=new URLSearchParams(location.search).get('key')||'';
-async function _sha256(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 export let IS_ADMIN=false,IS_PLAYER=false;
-export async function initAuth(){
-  const h=await _sha256(urlKey);
-  IS_ADMIN=h===ADMIN_HASH;
-  IS_PLAYER=IS_ADMIN||(h===PLAYER_HASH);
-}
+// loading | ok | nokey | badkey | offline
+export let ACCESS='loading';
+// Text of the red banner while a change is not stored on the server, else null.
+export let SAVE_ERROR=null;
 
 export const SK='padelchamp_v1';
-export const SB_URL='https://yldwlgeabmwdjefeerpr.supabase.co';
-export const SB_KEY='sb_publishable_mrL1kVUYLjoiyKJMtJ20KA_ZRelO6BC';
-export const SB_HDR={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const API_URL='https://yldwlgeabmwdjefeerpr.supabase.co/functions/v1/api';
 
-export const _sbLoad=async()=>{
-  try{
-    const U=SB_URL+'/rest/v1/';
-    const G=t=>fetch(U+t,{headers:SB_HDR}).then(r=>r.json());
-    const [pl,se,ev,ep,tm,ma,bm,st]=await Promise.all([
-      G('players?select=*'),G('seasons?select=*'),G('events?select=*'),
-      G('event_players?select=*'),G('teams?select=*'),G('matches?select=*'),
-      G('bye_map?select=*'),G('settings?id=eq.1&select=*')
-    ]);
-    const byeMap={};
-    bm.forEach(r=>{if(!byeMap[r.event_id])byeMap[r.event_id]={};byeMap[r.event_id][r.rnd]=r.player_id;});
-    return{
-      players:pl.map(p=>({id:p.id,name:p.name,isActive:p.is_active})),
-      seasons:se.map(s=>({id:s.id,name:s.name,startDate:s.start_date,endDate:s.end_date,isActive:s.is_active})),
-      events:ev.map(e=>({id:e.id,sid:e.season_id,date:e.date,name:e.name,status:e.status})),
-      evP:ep.map(e=>({eid:e.event_id,pid:e.player_id})),
-      teams:tm.map(t=>({id:t.id,eid:t.event_id,rnd:t.rnd,player1Id:t.player1_id,player2Id:t.player2_id,name:t.name})),
-      matches:ma.map(m=>({id:m.id,eid:m.event_id,team1Id:m.team1_id,team2Id:m.team2_id,rnd:m.rnd,seq:m.seq,t1s1:m.t1s1,t2s1:m.t2s1,t1s2:m.t1s2,t2s2:m.t2s2,t1s3:m.t1s3,t2s3:m.t2s3,winnerTeamId:m.winner_team_id,status:m.status})),
-      byeMap,
-      settings:st.length?{ptsWin:st[0].pts_win,ptsLoss:st[0].pts_loss}:{ptsWin:3,ptsLoss:0}
-    };
-  }catch(e){console.warn('Supabase load failed',e);return null;}
+// One call to the server. Throws with .status (HTTP code, or undefined when
+// the server could not be reached at all).
+export const api=async(body)=>{
+  const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json','x-pc-key':urlKey},body:JSON.stringify(body)});
+  let data=null;try{data=await res.json();}catch{}
+  if(!res.ok){const e=new Error((data&&data.error)||('HTTP '+res.status));e.status=res.status;e.detail=data&&data.detail;throw e;}
+  return data;
 };
 
-export const _sbSave=async(payload)=>{
-  const U=SB_URL+'/rest/v1/';
-  const UP={...SB_HDR,'Prefer':'resolution=merge-duplicates,return=minimal'};
-  const ups=(t,rows)=>rows.length?fetch(U+t,{method:'POST',headers:UP,body:JSON.stringify(rows)}):Promise.resolve();
-  const del=(t,q)=>fetch(`${U}${t}?${q}`,{method:'DELETE',headers:SB_HDR});
-  const notIn=(ids)=>ids.length?`id=not.in.(${ids.join(',')})`:null;
-  try{
-    await ups('players',payload.players.map(p=>({id:p.id,name:p.name,is_active:p.isActive})));
-    const pq=notIn(payload.players.map(p=>p.id));if(pq)await del('players',pq);
-    await ups('seasons',payload.seasons.map(s=>({id:s.id,name:s.name,start_date:s.startDate,end_date:s.endDate,is_active:s.isActive})));
-    const sq=notIn(payload.seasons.map(s=>s.id));if(sq)await del('seasons',sq);
-    await ups('events',payload.events.map(e=>({id:e.id,season_id:e.sid,date:e.date,name:e.name,status:e.status||'scheduled'})));
-    if(payload.events.length){
-      await del('event_players',`event_id=in.(${payload.events.map(e=>e.id).join(',')})`);
-      await ups('event_players',payload.evP.map(e=>({event_id:e.eid,player_id:e.pid})));
-    }
-    await ups('teams',payload.teams.map(t=>({id:t.id,event_id:t.eid,rnd:t.rnd,player1_id:t.player1Id,player2_id:t.player2Id,name:t.name})));
-    const tq=notIn(payload.teams.map(t=>t.id));if(tq)await del('teams',tq);
-    await ups('matches',payload.matches.map(m=>({id:m.id,event_id:m.eid,team1_id:m.team1Id,team2_id:m.team2Id,rnd:m.rnd,seq:m.seq,t1s1:m.t1s1,t2s1:m.t2s1,t1s2:m.t1s2,t2s2:m.t2s2,t1s3:m.t1s3,t2s3:m.t2s3,winner_team_id:m.winnerTeamId,status:m.status})));
-    const mq=notIn(payload.matches.map(m=>m.id));if(mq)await del('matches',mq);
-    if(payload.events.length){
-      await del('bye_map',`event_id=in.(${payload.events.map(e=>e.id).join(',')})`);
-      const br=[];
-      Object.entries(payload.byeMap||{}).forEach(([eid,rnds])=>{Object.entries(rnds).forEach(([rnd,pid])=>{if(pid)br.push({event_id:eid,rnd:parseInt(rnd),player_id:pid});});});
-      await ups('bye_map',br);
-    }
-    // Removed events go last, after everything that points at them.
-    if(payload.events.length){
-      const gone=`event_id=not.in.(${payload.events.map(e=>e.id).join(',')})`;
-      for(const t of ['matches','teams','event_players','bye_map'])await del(t,gone);
-    }
-    const eq2=notIn(payload.events.map(e=>e.id));if(eq2)await del('events',eq2);
-    await fetch(`${U}settings?id=eq.1`,{method:'PATCH',headers:{...SB_HDR,'Prefer':'return=minimal'},body:JSON.stringify({pts_win:payload.settings.ptsWin,pts_loss:payload.settings.ptsLoss||0})});
-  }catch(e){console.warn('Supabase save error:',e);}
-};
-
-export const loadDB=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
-export const saveDB=()=>{
-  const payload={players:S.players,seasons:S.seasons,events:S.events,evP:S.evP,teams:S.teams,matches:S.matches,byeMap:S.byeMap,settings:S.settings};
-  try{localStorage.setItem(SK,JSON.stringify(payload));}catch(e){console.warn('localStorage save failed',e);}
-  if(IS_PLAYER)_sbSave(payload);
-};
+// ─── Local copy (shown when the server cannot be reached) ─────
+const DATA=['players','seasons','events','evP','teams','matches','byeMap','settings'];
+const emptyData=()=>({players:[],seasons:[],events:[],evP:[],teams:[],matches:[],byeMap:{},settings:{ptsWin:3,ptsLoss:0}});
+const loadLocal=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
+const saveLocal=()=>{try{localStorage.setItem(SK,JSON.stringify(Object.fromEntries(DATA.map(k=>[k,S[k]]))));}catch(e){console.warn('localStorage save failed',e);}};
 
 // ─── State ────────────────────────────────────────────────────
-export const saved=loadDB();
 export const S={
-  players:   saved?.players  || [{id:'1',name:'Klaus',isActive:true},{id:'2',name:'Zlate',isActive:true},{id:'3',name:'Marion',isActive:true},{id:'4',name:'Vitomir',isActive:true},{id:'5',name:'Goran',isActive:true},{id:'6',name:'Bojan',isActive:true}],
-  seasons:   saved?.seasons  || [{id:'s1',name:'Q2 2025',startDate:'2025-04-01',endDate:'2025-06-30',isActive:true}],
-  events:    saved?.events   || [],
-  evP:       saved?.evP      || [],
-  teams:     saved?.teams    || [],
-  matches:   saved?.matches  || [],
-  byeMap:    saved?.byeMap   || {},
-  settings:  saved?.settings || {ptsWin:3,ptsLoss:0},
+  ...emptyData(),
+  ...(loadLocal()||{}),
   tab:       0,
   selEv:     null,
   selSeason: null,
 };
 
 // ─── Derived getters ──────────────────────────────────────────
-export const activeSeason=()=>S.seasons.find(s=>s.isActive)||S.seasons[0];
+const NO_SEASON=Object.freeze({id:'',name:'–',startDate:'',endDate:'',isActive:true});
+export const activeSeason=()=>S.seasons.find(s=>s.isActive)||S.seasons[0]||NO_SEASON;
 export const displaySeason=()=>S.selSeason?S.seasons.find(s=>s.id===S.selSeason)||activeSeason():activeSeason();
 export const getEP=eid=>S.evP.filter(ep=>ep.eid===eid).map(ep=>S.players.find(p=>p.id===ep.pid)).filter(Boolean);
 export const getTeams=eid=>S.teams.filter(t=>t.eid===eid);
@@ -120,24 +57,102 @@ export const getEv=()=>S.events.find(e=>e.id===S.selEv);
 export const standings=()=>calcStandings(S,displaySeason().id);
 
 // ─── Change notification (main.js registers render here) ─────
-export const _listeners=[];
+const _listeners=[];
 export const onChange=fn=>{_listeners.push(fn);};
 export const notify=()=>{_listeners.forEach(fn=>fn());};
 
-// ─── Actions ─────────────────────────────────────────────────
-export const mut=(fn)=>{if(!IS_PLAYER){alert('🔒 Read-only. Spieler- oder Admin-URL benötigt.');return;}fn();saveDB();notify();};
+// ─── Server sync ──────────────────────────────────────────────
+// `synced` holds the rows the server last confirmed. A save sends only the
+// difference between `synced` and the current state, so rows this device
+// never touched are never overwritten or deleted.
+let synced=toRows(emptyData());
+let saving=false,failures=0,retryTimer=null;
 
-// ─── Load from Supabase (authoritative) ──────────────────────
+const adopt=rows=>{
+  const data=fromRows(rows);
+  synced=toRows(data);
+  Object.assign(S,data);
+  saveLocal();
+};
+const pending=()=>diffOps(synced,toRows(S));
+export const hasUnsaved=()=>saving||pending().length>0;
+
+// Loads everything from the server and learns the role of the key.
 export const loadRemote=async()=>{
-  const sbData=await _sbLoad();
-  if(sbData&&sbData.seasons&&sbData.seasons.length>0){
-    // Supabase has data — use it as source of truth
-    S.players=sbData.players;S.seasons=sbData.seasons;S.events=sbData.events;
-    S.evP=sbData.evP;S.teams=sbData.teams;S.matches=sbData.matches;
-    S.byeMap=sbData.byeMap;S.settings=sbData.settings;
-    try{localStorage.setItem(SK,JSON.stringify(sbData));}catch(e){}
-  } else if(sbData&&IS_PLAYER){
-    // Supabase empty — migrate localStorage data to Supabase
-    _sbSave({players:S.players,seasons:S.seasons,events:S.events,evP:S.evP,teams:S.teams,matches:S.matches,byeMap:S.byeMap,settings:S.settings});
+  if(!urlKey){ACCESS='nokey';return;}
+  try{
+    const {role,state}=await api({action:'state'});
+    IS_ADMIN=role==='admin';IS_PLAYER=IS_ADMIN||role==='player';
+    adopt(state);ACCESS='ok';
+  }catch(e){
+    if(e.status===401){ACCESS='badkey';IS_ADMIN=IS_PLAYER=false;return;}
+    // Server not reachable: keep showing the local copy, read-only.
+    console.warn('load failed',e);
+    if(ACCESS!=='ok')ACCESS='offline';
   }
+};
+
+const scheduleRetry=()=>{
+  clearTimeout(retryTimer);
+  retryTimer=setTimeout(flush,10000);
+  if(retryTimer&&retryTimer.unref)retryTimer.unref();
+};
+
+// Sends unsaved changes. One request at a time; changes made meanwhile go
+// out in the next round.
+export const flush=async()=>{
+  if(saving)return;
+  const next=toRows(S),ops=diffOps(synced,next);
+  if(!ops.length)return;
+  saving=true;
+  let again=false;
+  try{
+    await api({action:'ops',ops});
+    synced=next;failures=0;SAVE_ERROR=null;again=true;
+  }catch(e){
+    failures++;
+    const refused=e.status===400||e.status===403||(e.status>=500&&failures>=3);
+    if(refused){
+      // The server will not take this change. Drop it and show the server's state again.
+      failures=0;SAVE_ERROR=null;
+      alert(e.status===403?'🔒 Dieser Zugang darf das nicht ändern. Die Änderung wurde verworfen.':'⚠️ Die Änderung konnte nicht gespeichert werden und wurde verworfen.'+(e.detail?'\n\n'+e.detail:''));
+      saving=false;
+      await loadRemote();notify();
+      return;
+    }
+    console.warn('save failed',e);
+    SAVE_ERROR='⚠️ Nicht gespeichert — neuer Versuch läuft';
+    scheduleRetry();
+  }finally{
+    saving=false;
+  }
+  notify();
+  if(again&&pending().length)return flush();
+};
+
+// Picks up what other devices changed. Skipped while this device has
+// unsaved changes, so they are not overwritten.
+export const refresh=async()=>{
+  if(ACCESS!=='ok'&&ACCESS!=='offline')return;
+  // Offline means the first load never succeeded: nothing can be unsaved yet.
+  if(ACCESS==='offline'){await loadRemote();notify();return;}
+  if(hasUnsaved())return;
+  try{
+    const {state}=await api({action:'state'});
+    if(hasUnsaved())return;
+    if(diffOps(synced,toRows(fromRows(state))).length){adopt(state);notify();}
+  }catch(e){console.warn('refresh failed',e);}
+};
+
+export const startSync=()=>{
+  const t=setInterval(()=>{if(document.visibilityState==='visible')refresh();},15000);
+  if(t&&t.unref)t.unref();
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh();});
+};
+
+// ─── Actions ─────────────────────────────────────────────────
+export const mut=(fn)=>{
+  if(ACCESS!=='ok'){alert('📡 Keine Verbindung zum Server. Änderungen sind gerade nicht möglich.');return;}
+  if(!IS_PLAYER){alert('🔒 Read-only. Spieler- oder Admin-URL benötigt.');return;}
+  fn();saveLocal();notify();flush();
 };

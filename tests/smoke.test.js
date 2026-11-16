@@ -1,11 +1,12 @@
-// Loads the whole app against a stand-in DOM. Proves the modules resolve and
-// every screen renders; it does not prove what the screens look like.
+// Loads the whole app against a stand-in DOM and a fake server. Proves the
+// modules resolve and every screen renders; not what the screens look like.
 import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installFakeDom } from './helpers/fake-dom.js';
+import { toRows } from '../js/sync.js';
 
-const stored = {
+const data = {
   players: [1, 2, 3, 4, 5].map(n => ({ id: String(n), name: 'P' + n, isActive: true })),
   seasons: [{ id: 's1', name: 'Test', startDate: '2026-01-01', endDate: '2026-12-31', isActive: true }],
   events: [{ id: 'e1', sid: 's1', name: 'Testtag', date: '2026-06-01', status: 'active' }],
@@ -21,14 +22,22 @@ const stored = {
 };
 
 let main, store;
+const sent = [];
 before(async () => {
-  installFakeDom({ stored });
+  installFakeDom({ search: '?key=test' });
+  globalThis.fetch = async (url, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.action === 'ops') sent.push(...body.ops);
+    const answer = body.action === 'state' ? { role: 'admin', state: toRows(data) } : { applied: 1 };
+    return { ok: true, status: 200, json: async () => answer };
+  };
   main = await import('../js/main.js');
   store = await import('../js/store.js');
   await main.ready;
 });
 
-test('starts from the state already saved on the device', () => {
+test('starts with the data the server sent', () => {
+  assert.equal(store.ACCESS, 'ok');
   assert.equal(store.S.players.length, 5);
   assert.equal(store.S.events[0].status, 'active');
 });
@@ -59,10 +68,13 @@ test('standings has a row per active player', () => {
   assert.equal(store.standings().length, 5);
 });
 
-test('without a key nothing can be changed', () => {
-  assert.equal(store.IS_PLAYER, false);
-  store.mut(() => { store.S.players.push({}); });
-  assert.equal(store.S.players.length, 5);
+test('drawing teams for a new round sends only the new rows', async () => {
+  const { genTeams } = await import('../js/actions.js');
+  genTeams('e1', 2);
+  await new Promise(r => setTimeout(r, 0));
+  assert.equal(store.S.teams.filter(t => t.rnd === 2).length, 2);
+  assert.deepEqual(sent.map(o => o.a + ' ' + o.t), ['upsert teams', 'upsert teams']);
+  assert.match(sent[0].row.id, /^[0-9a-f-]{36}$/);
 });
 
 test('index.html warns when opened as a file and has no inline nav handlers', () => {
@@ -70,4 +82,13 @@ test('index.html warns when opened as a file and has no inline nav handlers', ()
   assert.ok(html.includes("location.protocol==='file:'"));
   assert.ok(!html.includes('onclick="setTab'));
   assert.ok(html.includes('<script type="module" src="js/main.js"></script>'));
+});
+
+test('no keys, key hashes or old backend calls are left in the client', () => {
+  const files = ['js/store.js', 'js/main.js', 'js/views/ki.js', 'js/views/settings.js', 'index.html'];
+  const all = files.map(f => readFileSync(new URL('../' + f, import.meta.url), 'utf8')).join('\n');
+  assert.ok(!/[0-9a-f]{64}/.test(all), 'hash found');
+  assert.ok(!all.includes('sb_publishable_'), 'publishable key found');
+  assert.ok(!all.includes('/rest/v1/'), 'direct database call found');
+  assert.ok(!all.includes('dynamic-endpoint'), 'old AI function found');
 });

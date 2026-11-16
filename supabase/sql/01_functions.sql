@@ -10,12 +10,12 @@ stable
 set search_path = public
 as $$
   select jsonb_build_object(
-    'players',       (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.players x),
-    'seasons',       (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.seasons x),
-    'events',        (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.events x),
+    'players',       (select coalesce(jsonb_agg(to_jsonb(x) order by x.name, x.id), '[]'::jsonb) from public.players x),
+    'seasons',       (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]'::jsonb) from public.seasons x),
+    'events',        (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]'::jsonb) from public.events x),
     'event_players', (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.event_players x),
-    'teams',         (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.teams x),
-    'matches',       (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.matches x),
+    'teams',         (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]'::jsonb) from public.teams x),
+    'matches',       (select coalesce(jsonb_agg(to_jsonb(x) order by x.id), '[]'::jsonb) from public.matches x),
     'bye_map',       (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.bye_map x),
     'settings',      (select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from public.settings x)
   );

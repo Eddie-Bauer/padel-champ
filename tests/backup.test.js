@@ -2,32 +2,37 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TABLES, fetchAll, counts, describeError } from '../scripts/backup.mjs';
 
-const respond = (ok, body) => async () => ({ ok, status: ok ? 200 : 500, json: async () => body });
+const stateOf = rows => Object.fromEntries(TABLES.map(t => [t, rows]));
+const respond = (status, body) => async () => ({ ok: status === 200, status, json: async () => body });
 
 test('TABLES lists the eight tables', () => {
   assert.deepEqual(TABLES, ['players', 'seasons', 'events', 'event_players', 'teams', 'matches', 'bye_map', 'settings']);
 });
 
 test('fetchAll returns one array per table', async () => {
-  const data = await fetchAll(respond(true, [{ id: 1 }]), 'https://x.test', 'k');
+  const data = await fetchAll(respond(200, { role: 'admin', state: stateOf([{ id: 1 }]) }), 'https://x.test/api', 'k');
   assert.deepEqual(Object.keys(data), TABLES);
   for (const t of TABLES) assert.deepEqual(data[t], [{ id: 1 }]);
 });
 
-test('fetchAll sends the key and asks for the table', async () => {
+test('fetchAll asks the api function for the state, with the key in the header', async () => {
   const calls = [];
-  const fetchFn = async (url, opts) => { calls.push([url, opts.headers.apikey]); return { ok: true, json: async () => [] }; };
-  await fetchAll(fetchFn, 'https://x.test', 'k');
-  assert.deepEqual(calls[0], ['https://x.test/rest/v1/players?select=*', 'k']);
-  assert.equal(calls.length, 8);
+  const fetchFn = async (url, opts) => { calls.push([url, opts.method, opts.headers['x-pc-key'], opts.body]); return { ok: true, status: 200, json: async () => ({ state: stateOf([]) }) }; };
+  await fetchAll(fetchFn, 'https://x.test/api', 'k');
+  assert.deepEqual(calls, [['https://x.test/api', 'POST', 'k', '{"action":"state"}']]);
+});
+
+test('fetchAll rejects a refused key', async () => {
+  await assert.rejects(fetchAll(respond(401, { error: 'unauthorized' }), 'https://x.test/api', 'k'), /401/);
 });
 
 test('fetchAll rejects when a response is not ok', async () => {
-  await assert.rejects(fetchAll(respond(false, []), 'https://x.test', 'k'));
+  await assert.rejects(fetchAll(respond(500, {}), 'https://x.test/api', 'k'));
 });
 
-test('fetchAll rejects when the body is not an array', async () => {
-  await assert.rejects(fetchAll(respond(true, { message: 'paused' }), 'https://x.test', 'k'));
+test('fetchAll rejects when a table is missing or not a list', async () => {
+  await assert.rejects(fetchAll(respond(200, { state: { players: [] } }), 'https://x.test/api', 'k'));
+  await assert.rejects(fetchAll(respond(200, { message: 'paused' }), 'https://x.test/api', 'k'));
 });
 
 test('describeError names the network cause and hints at a paused project', () => {
