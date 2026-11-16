@@ -8,7 +8,8 @@ import { toRows } from '../js/sync.js';
 
 const data = {
   players: [1, 2, 3, 4, 5].map(n => ({ id: String(n), name: 'P' + n, isActive: true })),
-  seasons: [{ id: 's1', name: 'Test', startDate: '2026-01-01', endDate: '2026-12-31', isActive: true }],
+  seasons: [{ id: 's1', name: 'Test', startDate: '2026-01-01', endDate: '2026-06-30', isActive: true },
+    { id: 's2', name: 'Zweite', startDate: '2026-07-01', endDate: '2026-12-31', isActive: false }],
   events: [{ id: 'e1', sid: 's1', name: 'Testtag', date: '2026-06-01', status: 'active' }],
   evP: [1, 2, 3, 4].map(n => ({ eid: 'e1', pid: String(n) })),
   teams: [
@@ -42,26 +43,30 @@ test('starts with the data the server sent', () => {
   assert.equal(store.S.events[0].status, 'active');
 });
 
-for (const tab of [0, 1, 2, 3, 4]) {
+for (const tab of ['start', 'events', 'standings', 'players', 'settings']) {
   test(`tab ${tab} renders`, () => {
     assert.doesNotThrow(() => main.setTab(tab));
   });
 }
 
 test('event detail renders', () => {
-  store.S.tab = 2;
+  store.S.tab = 'events';
   store.S.selEv = 'e1';
   assert.doesNotThrow(() => main.render());
   store.S.selEv = null;
 });
 
-test('score modal, team builder and KI modal open', async () => {
-  const { openScoreModal } = await import('../js/views/match.js');
+test('the sheets open: score, team builder, KI, new event, confirm', async () => {
+  const { openScoreSheet } = await import('../js/views/match.js');
+  const { openNewEvent } = await import('../js/views/events.js');
+  const { confirmSheet } = await import('../js/sheet.js');
   const { openTeamBuilder } = await import('../js/views/teambuilder.js');
   const { openKiAnalyse } = await import('../js/views/ki.js');
-  assert.doesNotThrow(() => openScoreModal(store.S.matches[0]));
+  assert.doesNotThrow(() => openScoreSheet(store.S.matches[0]));
+  assert.doesNotThrow(() => openNewEvent());
+  assert.doesNotThrow(() => confirmSheet({ title: 'T?', text: 'x', action: 'Ok', onConfirm() {} }).close());
   assert.doesNotThrow(() => openTeamBuilder('e1', 2));
-  await assert.doesNotReject(openKiAnalyse());
+  assert.doesNotThrow(() => openKiAnalyse());
 });
 
 test('standings has a row per active player', () => {
@@ -88,7 +93,25 @@ test('deactivating a player keeps the player and sends one change', async () => 
   assert.deepEqual(sent, [{ t: 'players', a: 'upsert', row: { id: '5', name: 'P5', is_active: false } }]);
   setPlayerActive('5', true);
   assert.equal(store.standings().length, 5);
-  assert.doesNotThrow(() => main.setTab(3));
+  assert.doesNotThrow(() => main.setTab('players'));
+});
+
+test('moving an event to another season sends exactly that event', async () => {
+  const { moveEvent, addEvent } = await import('../js/actions.js');
+  sent.length = 0;
+  moveEvent('e1', 's2');
+  await new Promise(r => setTimeout(r, 0));
+  assert.equal(store.S.events[0].sid, 's2');
+  assert.deepEqual(sent.map(o => [o.t, o.a, o.row.id, o.row.season_id]), [['events', 'upsert', 'e1', 's2']]);
+  moveEvent('e1', 'nope');
+  assert.equal(store.S.events[0].sid, 's2', 'an unknown season is ignored');
+  moveEvent('e1', 's1');
+  await new Promise(r => setTimeout(r, 0));
+  // A new Padel Day goes to the season its date belongs to, not the active one.
+  const id = addEvent('2026-10-04');
+  assert.equal(store.S.events.find(e => e.id === id).sid, 's2');
+  const { openMoveEvent } = await import('../js/views/detail.js');
+  assert.doesNotThrow(() => openMoveEvent(store.S.events[0]).close());
 });
 
 test('index.html warns when opened as a file and has no inline nav handlers', () => {
@@ -99,7 +122,7 @@ test('index.html warns when opened as a file and has no inline nav handlers', ()
 });
 
 test('no keys, key hashes or old backend calls are left in the client', () => {
-  const files = ['js/store.js', 'js/main.js', 'js/views/ki.js', 'js/views/settings.js', 'index.html'];
+  const files = ['js/store.js', 'js/main.js', 'js/views/ki.js', 'js/views/settings.js', 'js/actions.js', 'index.html'];
   const all = files.map(f => readFileSync(new URL('../' + f, import.meta.url), 'utf8')).join('\n');
   assert.ok(!/[0-9a-f]{64}/.test(all), 'hash found');
   assert.ok(!all.includes('sb_publishable_'), 'publishable key found');

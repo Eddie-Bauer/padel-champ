@@ -18,16 +18,7 @@ export const checkScore=sets=>{
   return res(true,false,null);
 };
 
-// Position in a colour list for an id. Numeric ids keep the colour they
-// always had; other ids (random ones) get a stable one from their text.
-export const colorIndex=(id,n)=>{
-  const s=String(id??0);
-  if(/^\d+$/.test(s))return parseInt(s)%n;
-  let h=0;for(const ch of s)h=(h*31+ch.charCodeAt(0))>>>0;
-  return h%n;
-};
-
-export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' / '+p2.name.split(' ')[0];
+export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' & '+p2.name.split(' ')[0];
 
 // Random pairs. With an odd number one player sits out (bye), but never the
 // player who sat out the round before.
@@ -63,8 +54,22 @@ export const withoutEvent=(state,eid)=>{
   };
 };
 
-// Season ranking per player. state = {players, events, teams, matches, settings}
-export const calcStandings=(state,seasonId)=>{
+// The season a day belongs to: the one whose start and end contain it (the
+// active one if several do), else the active season, else the first.
+export const seasonForDate=(seasons,date)=>{
+  const hits=seasons.filter(s=>s.startDate&&s.endDate&&s.startDate<=date&&date<=s.endDate);
+  return hits.find(s=>s.isActive)||hits[0]||seasons.find(s=>s.isActive)||seasons[0]||null;
+};
+
+// To win the season a player needs at least this many matches.
+export const MIN_MATCHES=10;
+
+// Season ranking per player. Players with at least `minMatches` matches are
+// in the ranking (`qualified`) and come first; the others follow. Within
+// each group: win rate (not points), set difference, game difference, more
+// matches played. Players without any match come last. state = {players, events, teams, matches, settings}
+const rate=r=>r.mp>0?r.w/r.mp:0;
+export const calcStandings=(state,seasonId,minMatches=MIN_MATCHES)=>{
   const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));
   const cms=state.matches.filter(m=>m.status==='completed'&&eids.has(m.eid));
   const acc={};
@@ -85,6 +90,6 @@ export const calcStandings=(state,seasonId)=>{
   }
   return Object.entries(acc).map(([pid,a])=>{
     const mp=a.w+a.l,pts=a.w*state.settings.ptsWin+a.l*(state.settings.ptsLoss||0);
-    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0};
-  }).filter(s=>s.player).sort((a,b)=>b.pts-a.pts||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
+    return{player:state.players.find(p=>p.id===pid),pts,w:a.w,l:a.l,mp,sd:a.sw-a.sl,gd:a.gw-a.gl,pct:mp>0?Math.round(a.w/mp*100):0,qualified:mp>=minMatches};
+  }).filter(s=>s.player).sort((a,b)=>b.qualified-a.qualified||(b.mp>0)-(a.mp>0)||rate(b)-rate(a)||b.sd-a.sd||b.gd-a.gd||b.mp-a.mp).map((s,i)=>({...s,rank:i+1}));
 };

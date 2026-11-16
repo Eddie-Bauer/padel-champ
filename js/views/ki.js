@@ -1,94 +1,70 @@
-import {C} from '../theme.js';
-import {el,div,span} from '../dom.js';
+// KI-Analyse: a short commentary on the season, written by the AI.
+import {h,first} from '../dom.js';
 import {api,S,displaySeason,standings} from '../store.js';
+import {openSheet} from '../sheet.js';
 
-// ── KI Analyse ────────────────────────────────────────────────
-export const openKiAnalyse=async()=>{
-  const ds=displaySeason();
-  const st=standings();
-  if(st.length===0){alert('Noch keine Ergebnisse für eine KI-Analyse.');return;}
+const setsText=m=>[[m.t1s1,m.t2s1],[m.t1s2,m.t2s2],[m.t1s3,m.t2s3]].filter(([a])=>a!=null).map(([a,b])=>a+':'+b).join(', ');
+const nameOf=id=>first(S.players.find(p=>p.id===id)?.name);
+const teamOf=id=>S.teams.find(t=>t.id===id);
+
+// The three questions and the data each one gets.
+const buildPrompts=()=>{
+  const ds=displaySeason(),st=standings();
   const evs=S.events.filter(e=>e.sid===ds.id).sort((a,b)=>b.date.localeCompare(a.date));
-  const lastEvs=evs.slice(0,5);
+  const played=m=>m.status==='completed'&&m.winnerTeamId;
 
-  const rankingText=st.map((x,i)=>`${i+1}. ${x.player.name}: ${x.pts} Pkt, ${x.w}S/${x.l}N, ${x.pct}% Siegquote, Satzdiff ${x.sd>0?'+':''}${x.sd}`).join('\n');
+  const rankingText=st.map((x,i)=>`${i+1}. ${x.player.name}: ${x.pts} Pkt, ${x.w}S/${x.l}N, ${x.pct}% Siegquote, Satzdiff ${x.sd>0?'+':''}${x.sd}${x.qualified?'':' (noch außer Wertung, zu wenige Spiele)'}`).join('\n');
 
-  const evText=lastEvs.map(ev=>{
-    const allM=S.matches.filter(m=>m.eid===ev.id&&m.status==='completed');
-    const rnds=[...new Set(allM.map(m=>m.rnd))].sort((a,b)=>a-b);
-    const lines=rnds.map(rnd=>{
-      const rm=S.matches.filter(m=>m.eid===ev.id&&m.rnd===rnd&&m.status==='completed');
-      return 'Runde '+rnd+': '+rm.map(m=>{
-        const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);
-        if(!t1||!t2)return '';
-        const gp=id=>S.players.find(p=>p.id===id)?.name?.split(' ')[0]||'?';
-        const score=[[m.t1s1,m.t2s1],[m.t1s2,m.t2s2],[m.t1s3,m.t2s3]].filter(([a])=>a!=null).map(([a,b])=>a+':'+b).join(', ');
-        return `${gp(t1.player1Id)}/${gp(t1.player2Id)} vs ${gp(t2.player1Id)}/${gp(t2.player2Id)} [${score}]`;
-      }).filter(Boolean).join(' | ');
-    }).join('\n');
-    return ev.name+':\n'+lines;
+  const evText=evs.slice(0,5).map(ev=>{
+    const ms=S.matches.filter(m=>m.eid===ev.id&&played(m));
+    const rnds=[...new Set(ms.map(m=>m.rnd))].sort((a,b)=>a-b);
+    return ev.name+':\n'+rnds.map(rnd=>'Runde '+rnd+': '+ms.filter(m=>m.rnd===rnd).map(m=>{
+      const t1=teamOf(m.team1Id),t2=teamOf(m.team2Id);
+      if(!t1||!t2)return'';
+      return`${nameOf(t1.player1Id)}/${nameOf(t1.player2Id)} vs ${nameOf(t2.player1Id)}/${nameOf(t2.player2Id)} [${setsText(m)}]`;
+    }).filter(Boolean).join(' | ')).join('\n');
   }).join('\n\n');
 
-  // Team chemistry: win/loss per player pair across all season events
-  const pairStats={};
-  S.matches.filter(m=>evs.find(e=>e.id===m.eid)&&m.status==='completed'&&m.winnerTeamId).forEach(m=>{
-    const t1=S.teams.find(t=>t.id===m.team1Id),t2=S.teams.find(t=>t.id===m.team2Id);
+  // Wins and losses per pair over the whole season.
+  const pairs={};
+  S.matches.filter(m=>evs.some(e=>e.id===m.eid)&&played(m)).forEach(m=>{
+    const t1=teamOf(m.team1Id),t2=teamOf(m.team2Id);
     if(!t1||!t2)return;
-    const gp=id=>S.players.find(p=>p.id===id)?.name?.split(' ')[0]||'?';
-    const addPair=(t,won)=>{const key=[gp(t.player1Id),gp(t.player2Id)].sort().join(' & ');if(!pairStats[key])pairStats[key]={w:0,l:0};won?pairStats[key].w++:pairStats[key].l++;};
-    const t1won=m.winnerTeamId===m.team1Id;addPair(t1,t1won);addPair(t2,!t1won);
+    const add=(t,won)=>{const k=[nameOf(t.player1Id),nameOf(t.player2Id)].sort().join(' & ');if(!pairs[k])pairs[k]={w:0,l:0};won?pairs[k].w++:pairs[k].l++;};
+    add(t1,m.winnerTeamId===t1.id);add(t2,m.winnerTeamId===t2.id);
   });
-  const teamText=Object.entries(pairStats).filter(([,s])=>s.w+s.l>0).sort((a,b)=>(b[1].w/(b[1].w+b[1].l))-(a[1].w/(a[1].w+a[1].l))).map(([pair,s])=>`${pair}: ${s.w}S/${s.l}N (${Math.round(s.w/(s.w+s.l)*100)}%)`).join('\n');
+  const teamText=Object.entries(pairs).sort((a,b)=>b[1].w/(b[1].w+b[1].l)-a[1].w/(a[1].w+a[1].l))
+    .map(([pair,s])=>`${pair}: ${s.w}S/${s.l}N (${Math.round(s.w/(s.w+s.l)*100)}%)`).join('\n');
 
-  const overlay=div('overlay');
-  const modal=div('modal fi');
-  overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+  return{
+    saison:`Du bist ein witziger, direkter Padel-Sportkommentator. Analysiere diese Saison-Daten auf Deutsch und schreib einen kurzen, unterhaltsamen Kommentar (max. 5-6 Sätze). Hebe 2-3 interessante Beobachtungen hervor: Wer dominiert, wer kämpft, Trends oder Überraschungen. Sei konkret, nenn Namen.\n\nSAISON: ${ds.name}\n\nRANGLISTE:\n${rankingText}\n\nLETZTE EVENTS:\n${evText}`,
+    spieler:`Du bist ein Padel-Trainer und Statistik-Analyst. Analysiere die Performance jedes Spielers auf Deutsch (max. 6-7 Sätze gesamt). Für die Top 3 und Schlusslichter: Was sind Stärken, was Schwächen, welcher Trend ist erkennbar? Sei direkt, nenn Namen, keine Floskeln.\n\nSAISON: ${ds.name}\n\nRANGLISTE:\n${rankingText}`,
+    team:`Du bist ein Padel-Taktikexperte. Analysiere auf Deutsch welche Spielerpaare am besten harmonieren (max. 5-6 Sätze). Wer ist das stärkste Duo? Gibt es Überraschungen — gute Paare die man nicht erwartet hätte? Welche Kombination sollte man vermeiden? Sei konkret, nenn Namen.\n\nSAISON: ${ds.name}\n\nTEAM-STATISTIKEN (Siegquote):\n${teamText||'Keine Daten verfügbar.'}`,
+  };
+};
 
-  const hdr=div('',{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'});
-  hdr.appendChild(span('🤖 KI-Analyse',{fontSize:'17px',fontWeight:'700',color:C.text}));
-  const xbtn=el('button',{style:{background:C.bg,border:'none',borderRadius:'8px',width:'32px',height:'32px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}},'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="'+C.sub+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>');
-  xbtn.onclick=()=>overlay.remove();hdr.appendChild(xbtn);modal.appendChild(hdr);
+const TYPES=[['saison','Saison'],['spieler','Spieler'],['team','Team-Chemie']];
 
-  const seasonLabel=div('',{background:C.accentBg,borderRadius:'10px',padding:'8px 12px',marginBottom:'14px'});
-  seasonLabel.appendChild(span(ds.name+' · '+st.length+' Spieler · '+evs.length+' Events',{fontSize:'12px',fontWeight:'600',color:C.accent}));
-  modal.appendChild(seasonLabel);
-
-  // Analysis type selector
-  const typeBtns=div('',{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginBottom:'16px'});
-  const resultDiv=div('',{fontSize:'14px',lineHeight:'1.65',color:C.text,minHeight:'80px'});
-
-  const runAnalysis=async(type,activeBtn)=>{
-    typeBtns.querySelectorAll('button').forEach(b=>b.style.opacity='0.5');
-    activeBtn.style.opacity='1';
-    resultDiv.innerHTML='';
-    const loader=div('',{display:'flex',alignItems:'center',gap:'10px',padding:'12px 0'});
-    loader.appendChild(span('⏳',{fontSize:'20px'}));
-    loader.appendChild(span('Analyse läuft...',{fontSize:'14px',color:C.muted}));
-    resultDiv.appendChild(loader);
-
-    const prompts={
-      saison:`Du bist ein witziger, direkter Padel-Sportkommentator. Analysiere diese Saison-Daten auf Deutsch und schreib einen kurzen, unterhaltsamen Kommentar (max. 5-6 Sätze). Hebe 2-3 interessante Beobachtungen hervor: Wer dominiert, wer kämpft, Trends oder Überraschungen. Sei konkret, nenn Namen.\n\nSAISON: ${ds.name}\n\nRANGLISTE:\n${rankingText}\n\nLETZTE EVENTS:\n${evText}`,
-      spieler:`Du bist ein Padel-Trainer und Statistik-Analyst. Analysiere die Performance jedes Spielers auf Deutsch (max. 6-7 Sätze gesamt). Für die Top 3 und Schlusslichter: Was sind Stärken, was Schwächen, welcher Trend ist erkennbar? Sei direkt, nenn Namen, keine Floskeln.\n\nSAISON: ${ds.name}\n\nRANGLISTE:\n${rankingText}`,
-      team:`Du bist ein Padel-Taktikexperte. Analysiere auf Deutsch welche Spielerpaare am besten harmonieren (max. 5-6 Sätze). Wer ist das stärkste Duo? Gibt es Überraschungen — gute Paare die man nicht erwartet hätte? Welche Kombination sollte man vermeiden? Sei konkret, nenn Namen.\n\nSAISON: ${ds.name}\n\nTEAM-STATISTIKEN (Siegquote):\n${teamText||'Keine Daten verfügbar.'}`
-    };
-
+export const openKiAnalyse=()=>{
+  const prompts=buildPrompts();
+  const result=h('div',{class:'app-prose','aria-live':'polite'},
+    h('p',{class:'pc-muted',text:'Wähle oben, was die KI kommentieren soll.'}));
+  let running=0;
+  const run=async(type,tab)=>{
+    const mine=++running;
+    seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b===tab)));
+    result.replaceChildren(h('p',{class:'pc-muted',text:'Analyse läuft …'}));
     try{
       const data=await api({action:'analyze',prompt:prompts[type]});
+      if(mine!==running)return;
       const text=data?.candidates?.[0]?.content?.parts?.[0]?.text||'Keine Antwort erhalten.';
-      resultDiv.innerHTML='';
-      text.split('\n').filter(l=>l.trim()).forEach(line=>{const p=document.createElement('p');p.textContent=line;p.style.marginBottom='10px';resultDiv.appendChild(p);});
+      result.replaceChildren(...text.split('\n').filter(l=>l.trim()).map(line=>h('p',{text:line})));
     }catch(e){
-      resultDiv.innerHTML='';
-      resultDiv.appendChild(span('⚠️ Fehler: '+e.message,{fontSize:'13px',color:C.red}));
+      if(mine!==running)return;
+      result.replaceChildren(h('p',{class:'app-error',text:'Die Analyse hat nicht geklappt: '+e.message}));
     }
   };
-
-  [['saison','🏆 Saison'],['spieler','👤 Spieler'],['team','🤝 Team-Chemie']].forEach(([type,label])=>{
-    const b=el('button',{class:'press',style:{padding:'9px 6px',borderRadius:'10px',border:'1px solid '+C.border,background:C.accentBg,color:C.accent,fontSize:'12px',fontWeight:'700',cursor:'pointer'}},label);
-    b.onclick=()=>runAnalysis(type,b);
-    typeBtns.appendChild(b);
-  });
-
-  modal.appendChild(typeBtns);
-  modal.appendChild(resultDiv);
-  overlay.appendChild(modal);document.body.appendChild(overlay);
+  const seg=h('div',{class:'pc-seg',role:'tablist','aria-label':'Art der Analyse'},
+    TYPES.map(([type,label])=>{const b=h('button',{type:'button',role:'tab','aria-selected':'false',text:label});b.addEventListener('click',()=>run(type,b));return b;}));
+  return openSheet({title:'KI-Analyse',body:[seg,result]});
 };

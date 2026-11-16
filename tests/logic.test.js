@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, colorIndex } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -125,7 +125,7 @@ test('roundRobin pairs everyone once, in loop order', () => {
 });
 
 test('teamName joins first names', () => {
-  assert.equal(teamName({ name: 'Anna Muster' }, { name: 'Ben' }), 'Anna / Ben');
+  assert.equal(teamName({ name: 'Anna Muster' }, { name: 'Ben' }), 'Anna & Ben');
 });
 
 // ── checkScore ──
@@ -160,18 +160,90 @@ test('checkScore: no sets at all is refused', () => {
   assert.equal(checkScore([]).ok, false);
 });
 
-// ── colorIndex ──
-test('colorIndex keeps the old colour for numeric ids', () => {
-  assert.equal(colorIndex('3', 8), 3);
-  assert.equal(colorIndex('11', 8), 3);
-  assert.equal(colorIndex(undefined, 8), 0);
+// ── ranking by win rate ──
+test('calcStandings: ordered by win rate, not by points', () => {
+  // With 2 points per loss, P3 (1 win, 2 losses) has 7 points and 33 %;
+  // P1 (1 win, 0 losses) has 3 points and 100 %. P1 must rank higher.
+  const s = fixture({ players: players(6), settings: { ptsWin: 3, ptsLoss: 2 } });
+  s.teams.push(
+    { id: 'tA', eid: 'e1', rnd: 2, player1Id: '3', player2Id: '5' }, { id: 'tB', eid: 'e1', rnd: 2, player1Id: '4', player2Id: '6' },
+    { id: 'tC', eid: 'e1', rnd: 3, player1Id: '3', player2Id: '6' }, { id: 'tD', eid: 'e1', rnd: 3, player1Id: '4', player2Id: '5' });
+  s.matches.push(
+    match({ id: 'm2', team1Id: 'tA', team2Id: 'tB', winnerTeamId: 'tB' }),
+    match({ id: 'm3', team1Id: 'tC', team2Id: 'tD', winnerTeamId: 'tC' }));
+  const rows = calcStandings(s, 's1');
+  assert.ok(row(rows, '3').pts > row(rows, '1').pts, 'the fixture must put points and win rate at odds');
+  assert.ok(row(rows, '1').rank < row(rows, '3').rank);
+  const rates = rows.filter(r => r.mp > 0).map(r => r.w / r.mp);
+  assert.deepEqual(rates, [...rates].sort((a, b) => b - a));
 });
 
-test('colorIndex gives new random ids a stable colour in range', () => {
-  const ids = ['3f2a8c1e-0b7d-4c55-9a10-6d2e8f4b1c77', 'a81b2c3d-1111-4222-8333-444455556666', 's1'];
-  for (const id of ids) {
-    const i = colorIndex(id, 8);
-    assert.ok(Number.isInteger(i) && i >= 0 && i < 8, id);
-    assert.equal(colorIndex(id, 8), i);
-  }
+test('calcStandings: equal win rate is settled by set difference, then game difference', () => {
+  const s = fixture({ players: players(8) });
+  s.teams.push({ id: 'tE', eid: 'e1', rnd: 1, player1Id: '5', player2Id: '6' }, { id: 'tF', eid: 'e1', rnd: 1, player1Id: '7', player2Id: '8' });
+  // P5/P6 also win 2:0 in sets, but 6:0 6:0 instead of 6:4 6:3.
+  s.matches.push(match({ id: 'm2', team1Id: 'tE', team2Id: 'tF', winnerTeamId: 'tE', t1s1: 6, t2s1: 0, t1s2: 6, t2s2: 0 }));
+  const rows = calcStandings(s, 's1');
+  assert.deepEqual(rows.slice(0, 4).map(r => r.player.id), ['5', '6', '1', '2']);
+});
+
+test('calcStandings: players without a match come after everyone who played', () => {
+  const s = fixture({ players: players(5) });
+  const rows = calcStandings(s, 's1');
+  assert.equal(rows.at(-1).player.id, '5');
+  assert.ok(row(rows, '3').rank < row(rows, '5').rank, 'a played 0 % ranks above not played');
+});
+
+// ── minimum matches to be in the ranking ──
+// n matches between t1 (P1, P2) and t2 (P3, P4); t1 wins the first `wins` of them.
+const series = (n, wins) => Array.from({ length: n }, (_, i) => match({ id: 'x' + i, winnerTeamId: i < wins ? 't1' : 't2' }));
+
+test('MIN_MATCHES is 10', () => {
+  assert.equal(MIN_MATCHES, 10);
+});
+
+test('calcStandings: with fewer than 10 matches a player is not in the ranking yet', () => {
+  const nine = calcStandings(fixture({ matches: series(9, 9) }), 's1');
+  assert.ok(nine.every(r => r.qualified === false));
+  const ten = calcStandings(fixture({ matches: series(10, 10) }), 's1');
+  assert.ok(ten.every(r => r.qualified === true));
+});
+
+test('calcStandings: players in the ranking come before those who are not, whatever their win rate', () => {
+  // P1..P4 play 10 matches (P3 and P4 win only 2: 20 %). P5 and P6 win their single match: 100 %.
+  const s = fixture({ players: players(8), matches: series(10, 8) });
+  s.teams.push({ id: 'tE', eid: 'e1', rnd: 1, player1Id: '5', player2Id: '6' }, { id: 'tF', eid: 'e1', rnd: 1, player1Id: '7', player2Id: '8' });
+  s.matches.push(match({ id: 'm2', team1Id: 'tE', team2Id: 'tF', winnerTeamId: 'tE' }));
+  const rows = calcStandings(s, 's1');
+  assert.deepEqual(rows.map(r => r.player.id), ['1', '2', '3', '4', '5', '6', '7', '8']);
+  assert.deepEqual(rows.map(r => r.qualified), [true, true, true, true, false, false, false, false]);
+  assert.deepEqual(rows.map(r => r.rank), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('calcStandings: the minimum can be set per call', () => {
+  const rows = calcStandings(fixture(), 's1', 1);
+  assert.ok(rows.every(r => r.qualified));
+});
+
+// ── which season a date belongs to ──
+const SEASONS = [
+  { id: 'q3', name: 'Q3', startDate: '2026-07-01', endDate: '2026-09-30', isActive: true },
+  { id: 'q4', name: 'Q4', startDate: '2026-10-01', endDate: '2026-12-31', isActive: false },
+];
+
+test('seasonForDate: the season whose dates contain the day, even if another one is active', () => {
+  assert.equal(seasonForDate(SEASONS, '2026-10-04').id, 'q4');
+  assert.equal(seasonForDate(SEASONS, '2026-09-30').id, 'q3');
+  assert.equal(seasonForDate(SEASONS, '2026-10-01').id, 'q4');
+});
+
+test('seasonForDate: a day outside every season falls back to the active season', () => {
+  assert.equal(seasonForDate(SEASONS, '2027-02-01').id, 'q3');
+  assert.equal(seasonForDate([{ id: 'x', name: 'X', isActive: true }], '2026-10-04').id, 'x');
+});
+
+test('seasonForDate: overlapping seasons prefer the active one; no seasons gives null', () => {
+  const both = [{ ...SEASONS[1], startDate: '2026-07-01' }, SEASONS[0]];
+  assert.equal(seasonForDate(both, '2026-08-01').id, 'q3');
+  assert.equal(seasonForDate([], '2026-08-01'), null);
 });
