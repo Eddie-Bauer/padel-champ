@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TABLES, fetchAll, counts } from '../scripts/backup.mjs';
+import { TABLES, fetchAll, counts, describeError } from '../scripts/backup.mjs';
 
 const respond = (ok, body) => async () => ({ ok, status: ok ? 200 : 500, json: async () => body });
 
@@ -28,6 +28,17 @@ test('fetchAll rejects when a response is not ok', async () => {
 
 test('fetchAll rejects when the body is not an array', async () => {
   await assert.rejects(fetchAll(respond(true, { message: 'paused' }), 'https://x.test', 'k'));
+});
+
+test('describeError names the network cause and hints at a paused project', () => {
+  const err = Object.assign(new Error('fetch failed'), { cause: { code: 'ENOTFOUND' } });
+  const text = describeError(err);
+  assert.match(text, /ENOTFOUND/);
+  assert.match(text, /pausiert|paused/i);
+});
+
+test('describeError passes other errors through', () => {
+  assert.equal(describeError(new Error('players: HTTP 500')), 'players: HTTP 500');
 });
 
 test('counts gives rows per table', () => {

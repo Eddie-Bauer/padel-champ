@@ -25,6 +25,14 @@ export async function fetchAll(fetchFn, baseUrl, key) {
 
 export const counts = data => Object.fromEntries(Object.entries(data).map(([t, rows]) => [t, rows.length]));
 
+// "fetch failed" alone says nothing; the reason sits in err.cause.
+export const describeError = err => {
+  const code = err?.cause?.code || err?.cause?.message;
+  if (!code) return err.message;
+  return `${err.message} (${code}). Der Server ist nicht erreichbar. ` +
+    'Häufigster Grund: das Supabase-Projekt ist pausiert. Im Supabase-Dashboard prüfen.';
+};
+
 const stamp = d => d.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15);
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -37,7 +45,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     for (const [table, n] of Object.entries(counts(data))) console.log(`${table}: ${n}`);
     console.log(file);
   } catch (e) {
-    console.error('Backup failed, nothing written: ' + e.message);
+    console.error('Backup failed, nothing written: ' + describeError(e));
     process.exit(1);
   }
 }
