@@ -18,6 +18,15 @@ export const checkScore=sets=>{
   return res(true,false,null);
 };
 
+// Checks an Americano result: two whole numbers that add up to the points
+// played per match.
+export const checkPoints=(a,b,total)=>{
+  const whole=n=>Number.isInteger(n)&&n>=0;
+  if(!whole(a)||!whole(b))return{ok:false,error:'Bitte für beide Teams eine ganze Zahl ab 0 eingeben.'};
+  if(a+b!==total)return{ok:false,error:'Beide Zahlen zusammen müssen '+total+' ergeben (jetzt '+(a+b)+').'};
+  return{ok:true,error:null};
+};
+
 export const teamName=(p1,p2)=>p1.name.split(' ')[0]+' & '+p2.name.split(' ')[0];
 
 // Random pairs. With an odd number one player sits out (bye), but never the
@@ -70,7 +79,8 @@ export const MIN_MATCHES=10;
 // matches played. Players without any match come last. state = {players, events, teams, matches, settings}
 const rate=r=>r.mp>0?r.w/r.mp:0;
 export const calcStandings=(state,seasonId,minMatches=MIN_MATCHES)=>{
-  const eids=new Set(state.events.filter(e=>e.sid===seasonId).map(e=>e.id));
+  // Only Padel Days count for the season; tournaments have their own ranking.
+  const eids=new Set(state.events.filter(e=>e.sid===seasonId&&(e.format||'padel_day')==='padel_day').map(e=>e.id));
   const cms=state.matches.filter(m=>m.status==='completed'&&eids.has(m.eid));
   const acc={};
   const ga=id=>{if(!acc[id])acc[id]={w:0,l:0,sw:0,sl:0,gw:0,gl:0};return acc[id];};

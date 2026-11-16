@@ -189,3 +189,118 @@ test('finalPlacing: nothing before the final is decided', () => {
   assert.equal(finalPlacing({ final: open('a', 'g') }), null);
   assert.equal(finalPlacing({}), null);
 });
+
+// ── the whole tournament, step by step ──
+import { classicNext, classicEditable, STAGE_LABEL } from '../js/tournament.js';
+
+const T = (id, grp) => ({ id, grp });
+let seqNo = 0;
+// Turns what classicNext asks for into stored matches (the app does the same).
+const store = add => add.map(m => ({ ...open(m.team1Id, m.team2Id), id: 'p' + (++seqNo), stage: m.stage, rnd: m.rnd, seq: m.seq }));
+const win = (m, winner) => Object.assign(m, played(m.team1Id, m.team2Id, winner === m.team1Id ? [[6, 3]] : [[3, 6]]), { id: m.id, stage: m.stage, rnd: m.rnd, seq: m.seq });
+const group = (a, b, sets, seq) => ({ ...played(a, b, sets), stage: 'group', rnd: 1, seq });
+
+const twoGroups = () => ({
+  config: { groups: 2, advance: 2, thirdPlace: true },
+  teams: [T('a1', 'A'), T('a2', 'A'), T('a3', 'A'), T('b1', 'B'), T('b2', 'B'), T('b3', 'B')],
+  matches: [
+    group('a1', 'a2', [[6, 2]], 1), group('a1', 'a3', [[6, 1]], 2), group('a2', 'a3', [[6, 4]], 3),
+    group('b1', 'b2', [[6, 2]], 4), group('b1', 'b3', [[6, 1]], 5), group('b2', 'b3', [[6, 4]], 6),
+  ],
+});
+
+test('classicNext: nothing while group matches are open', () => {
+  const t = twoGroups();
+  t.matches[2] = { ...open('a2', 'a3'), stage: 'group', rnd: 1, seq: 3 };
+  assert.deepEqual(classicNext(t), { add: [], tied: [] });
+});
+
+test('classicNext: after the groups come the crossed semi-finals', () => {
+  const { add, tied } = classicNext(twoGroups());
+  assert.deepEqual(tied, []);
+  assert.deepEqual(add, [
+    { stage: 'semi', rnd: 3, seq: 1, team1Id: 'a1', team2Id: 'b2' },
+    { stage: 'semi', rnd: 3, seq: 2, team1Id: 'b1', team2Id: 'a2' },
+  ]);
+});
+
+test('classicNext: semi-finals lead to third place and final, then nothing more', () => {
+  const t = twoGroups();
+  const semis = store(classicNext(t).add);
+  t.matches.push(...semis);
+  assert.deepEqual(classicNext(t).add, [], 'semi-finals not played yet');
+  win(semis[0], 'a1'); win(semis[1], 'a2');
+  const last = classicNext(t).add;
+  assert.deepEqual(last, [
+    { stage: 'third', rnd: 4, seq: 1, team1Id: 'b2', team2Id: 'b1' },
+    { stage: 'final', rnd: 4, seq: 2, team1Id: 'a1', team2Id: 'a2' },
+  ]);
+  t.matches.push(...store(last));
+  assert.deepEqual(classicNext(t).add, [], 'the final exists: nothing is added twice');
+});
+
+test('classicNext: without the third-place option only the final is added', () => {
+  const t = twoGroups(); t.config.thirdPlace = false;
+  const semis = store(classicNext(t).add); t.matches.push(...semis);
+  win(semis[0], 'a1'); win(semis[1], 'b1');
+  assert.deepEqual(classicNext(t).add.map(m => m.stage), ['final']);
+});
+
+test('classicNext: a tie among the teams that advance blocks the playoff and names the group', () => {
+  const t = twoGroups();
+  // Group A becomes a circle: a1 beats a2, a2 beats a3, a3 beats a1, all 6:4.
+  t.matches[0] = group('a1', 'a2', [[6, 4]], 1); t.matches[1] = group('a3', 'a1', [[6, 4]], 2); t.matches[2] = group('a2', 'a3', [[6, 4]], 3);
+  assert.deepEqual(classicNext(t), { add: [], tied: ['A'] });
+  t.config.tiebreak = { A: ['a3', 'a1', 'a2'] };
+  const { add, tied } = classicNext(t);
+  assert.deepEqual(tied, []);
+  assert.deepEqual(add.map(m => [m.team1Id, m.team2Id]), [['a3', 'b2'], ['b1', 'a1']]);
+});
+
+test('classicNext: a tie below the cut does not block', () => {
+  const t = twoGroups(); t.config.advance = 1; t.config.thirdPlace = false;
+  // a1 beats both; a2 and a3 have not... make them level: they draw nothing, a2-a3 is replaced by two mirrored results is impossible,
+  // so use four teams: a1 beats all, the other three form a circle.
+  t.teams.push(T('a4', 'A'));
+  t.matches = [
+    group('a1', 'a2', [[6, 0]], 1), group('a1', 'a3', [[6, 0]], 2), group('a1', 'a4', [[6, 0]], 3),
+    group('a2', 'a3', [[6, 4]], 4), group('a3', 'a4', [[6, 4]], 5), group('a4', 'a2', [[6, 4]], 6),
+    group('b1', 'b2', [[6, 2]], 7), group('b1', 'b3', [[6, 1]], 8), group('b2', 'b3', [[6, 4]], 9),
+  ];
+  const { add, tied } = classicNext(t);
+  assert.deepEqual(tied, []);
+  assert.deepEqual(add, [{ stage: 'final', rnd: 4, seq: 2, team1Id: 'a1', team2Id: 'b1' }]);
+});
+
+test('classicNext: four groups go through quarter-finals and semi-finals', () => {
+  const teams = [], matches = []; let s = 0;
+  for (const g of ['A', 'B', 'C', 'D']) {
+    const [x, y] = [g.toLowerCase() + '1', g.toLowerCase() + '2'];
+    teams.push(T(x, g), T(y, g)); matches.push(group(x, y, [[6, 2]], ++s));
+  }
+  const t = { config: { groups: 4, advance: 2, thirdPlace: false }, teams, matches };
+  const q = store(classicNext(t).add); t.matches.push(...q);
+  assert.deepEqual(q.map(m => [m.stage, m.rnd, m.team1Id, m.team2Id]),
+    [['quarter', 2, 'a1', 'b2'], ['quarter', 2, 'c1', 'd2'], ['quarter', 2, 'b1', 'a2'], ['quarter', 2, 'd1', 'c2']]);
+  q.forEach(m => win(m, m.team1Id));
+  const sf = store(classicNext(t).add); t.matches.push(...sf);
+  assert.deepEqual(sf.map(m => [m.stage, m.team1Id, m.team2Id]), [['semi', 'a1', 'c1'], ['semi', 'b1', 'd1']]);
+});
+
+test('classicEditable: a result can be changed until the next stage has started', () => {
+  const t = twoGroups();
+  const g = t.matches[0];
+  assert.equal(classicEditable(g, t.matches), true);
+  const semis = store(classicNext(t).add); t.matches.push(...semis);
+  assert.equal(classicEditable(g, t.matches), false, 'groups are closed once the playoff exists');
+  assert.equal(classicEditable(semis[0], t.matches), true);
+  win(semis[0], 'a1'); win(semis[1], 'a2');
+  const last = store(classicNext(t).add); t.matches.push(...last);
+  assert.equal(classicEditable(semis[0], t.matches), false);
+  assert.equal(classicEditable(last[0], t.matches), true);
+  assert.equal(classicEditable(last[1], t.matches), true);
+});
+
+test('STAGE_LABEL names every stage in German', () => {
+  assert.deepEqual(Object.keys(STAGE_LABEL).sort(), ['final', 'group', 'quarter', 'semi', 'third']);
+});

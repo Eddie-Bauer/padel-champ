@@ -5,11 +5,11 @@ import { toRows, fromRows, diffOps } from '../js/sync.js';
 const state = () => ({
   players: [{ id: '1', name: 'P1', isActive: true }, { id: '2', name: 'P2', isActive: false }],
   seasons: [{ id: 's1', name: 'Test', startDate: '2026-01-01', endDate: '2026-12-31', isActive: true }],
-  events: [{ id: 'e1', sid: 's1', date: '2026-06-01', name: 'Tag', status: 'active' }],
+  events: [{ id: 'e1', sid: 's1', date: '2026-06-01', name: 'Tag', status: 'active', format: 'padel_day', config: {} }],
   evP: [{ eid: 'e1', pid: '1' }, { eid: 'e1', pid: '2' }],
-  teams: [{ id: 't1', eid: 'e1', rnd: 1, player1Id: '1', player2Id: '2', name: 'P1 / P2' }],
+  teams: [{ id: 't1', eid: 'e1', rnd: 1, player1Id: '1', player2Id: '2', name: 'P1 / P2', grp: null }],
   matches: [{ id: 'm1', eid: 'e1', team1Id: 't1', team2Id: 't2', rnd: 1, seq: 1,
-    t1s1: 6, t2s1: 4, t1s2: null, t2s2: null, t1s3: null, t2s3: null, winnerTeamId: 't1', status: 'completed' }],
+    t1s1: 6, t2s1: 4, t1s2: null, t2s2: null, t1s3: null, t2s3: null, winnerTeamId: 't1', status: 'completed', stage: null, court: null }],
   byeMap: { e1: { 1: '2', 2: null } },
   settings: { ptsWin: 3, ptsLoss: 0 },
 });
@@ -18,7 +18,7 @@ const rows = (change) => { const s = state(); change?.(s); return toRows(s); };
 test('toRows uses database column names', () => {
   const r = toRows(state());
   assert.deepEqual(r.players[1], { id: '2', name: 'P2', is_active: false });
-  assert.deepEqual(r.events[0], { id: 'e1', season_id: 's1', date: '2026-06-01', name: 'Tag', status: 'active' });
+  assert.deepEqual(r.events[0], { id: 'e1', season_id: 's1', date: '2026-06-01', name: 'Tag', status: 'active', format: 'padel_day', config: {} });
   assert.deepEqual(r.event_players[0], { event_id: 'e1', player_id: '1' });
   assert.deepEqual(r.bye_map, [{ event_id: 'e1', rnd: 1, player_id: '2' }]);
   assert.deepEqual(r.settings, [{ id: 1, pts_win: 3, pts_loss: 0 }]);
@@ -80,4 +80,50 @@ test('upserts come parents first, deletes children first, deletes after upserts'
   assert.deepEqual([...new Set(down)], ['delete matches', 'delete teams', 'delete bye_map', 'delete event_players', 'delete events', 'delete seasons', 'delete players']);
   const mixed = diffOps(rows(), rows(s => { s.teams = [{ ...s.teams[0], id: 't9' }]; })).map(o => o.a);
   assert.deepEqual(mixed, ['upsert', 'delete']);
+});
+
+// ── tournament fields ──
+test('rows from before tournaments existed get the defaults', () => {
+  const r = toRows(state());
+  const old = { ...r, events: [{ id: 'e1', season_id: 's1', date: '2026-06-01', name: 'Tag', status: 'active' }],
+    teams: [{ id: 't1', event_id: 'e1', rnd: 1, player1_id: '1', player2_id: '2', name: 'x' }],
+    matches: [{ id: 'm1', event_id: 'e1', team1_id: 't1', team2_id: 't2', rnd: 1, seq: 1 }] };
+  const s = fromRows(old);
+  assert.equal(s.events[0].format, 'padel_day');
+  assert.deepEqual(s.events[0].config, {});
+  assert.equal(s.teams[0].grp, null);
+  assert.equal(s.matches[0].stage, null);
+  assert.equal(s.matches[0].court, null);
+});
+
+test('format, config, group, stage and court travel to the database and back', () => {
+  const s = state();
+  Object.assign(s.events[0], { format: 'classic', config: { groups: 2, advance: 2, tiebreak: { A: ['t1'] } } });
+  s.teams[0].grp = 'A';
+  Object.assign(s.matches[0], { stage: 'semi', court: 2 });
+  const r = toRows(s);
+  assert.equal(r.events[0].format, 'classic');
+  assert.deepEqual(r.events[0].config, { groups: 2, advance: 2, tiebreak: { A: ['t1'] } });
+  assert.equal(r.teams[0].grp, 'A');
+  assert.deepEqual([r.matches[0].stage, r.matches[0].court], ['semi', 2]);
+  s.byeMap = { e1: { 1: '2' } };
+  assert.deepEqual(fromRows(toRows(s)), s);
+});
+
+test('a changed config is one upsert; the same config in another key order is no change', () => {
+  const a = rows(s => { s.events[0].config = { courts: 2, points: 21 }; });
+  const b = rows(s => { s.events[0].config = { points: 21, courts: 2 }; });
+  assert.deepEqual(diffOps(a, b), []);
+  const c2 = rows(s => { s.events[0].config = { courts: 2, points: 24 }; });
+  const ops = diffOps(a, c2);
+  assert.equal(ops.length, 1);
+  assert.deepEqual(ops[0].row.config, { courts: 2, points: 24 });
+});
+
+test('the rows keep their own copy of the config: changing the state later is still seen as a change', () => {
+  const s = state();
+  s.events[0].config = { courts: 2 };
+  const before = toRows(s);
+  s.events[0].config.courts = 3;            // changed in place
+  assert.equal(diffOps(before, toRows(s)).length, 1);
 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate } from '../js/logic.js';
+import { calcWinner, calcStandings, shuf, drawTeams, roundRobin, teamName, checkScore, MIN_MATCHES, seasonForDate, checkPoints } from '../js/logic.js';
 
 const players = n => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), name: 'P' + (i + 1), isActive: true }));
 
@@ -246,4 +246,28 @@ test('seasonForDate: overlapping seasons prefer the active one; no seasons gives
   const both = [{ ...SEASONS[1], startDate: '2026-07-01' }, SEASONS[0]];
   assert.equal(seasonForDate(both, '2026-08-01').id, 'q3');
   assert.equal(seasonForDate([], '2026-08-01'), null);
+});
+
+// ── tournaments never count for the season ──
+test('calcStandings: matches of an Americano or a classic tournament are ignored', () => {
+  for (const format of ['americano', 'classic']) {
+    const s = fixture({ events: [{ id: 'e1', sid: 's1', format }, { id: 'e2', sid: 's2' }] });
+    const rows = calcStandings(s, 's1');
+    assert.ok(rows.every(r => r.mp === 0 && r.pts === 0), format);
+  }
+  const s = fixture({ events: [{ id: 'e1', sid: 's1', format: 'padel_day' }] });
+  assert.equal(calcStandings(s, 's1')[0].mp, 1);
+});
+
+// ── Americano result check ──
+test('checkPoints: both numbers together must give the match total', () => {
+  assert.deepEqual(checkPoints(12, 9, 21), { ok: true, error: null });
+  assert.deepEqual(checkPoints(16, 16, 32), { ok: true, error: null });
+  assert.equal(checkPoints(12, 8, 21).ok, false);
+  assert.match(checkPoints(12, 8, 21).error, /21/);
+});
+
+test('checkPoints: only whole numbers from 0', () => {
+  for (const [a, b] of [[-1, 22], [10.5, 10.5], [NaN, 21], ['x', 21]]) assert.equal(checkPoints(a, b, 21).ok, false, a + ':' + b);
+  assert.equal(checkPoints(0, 21, 21).ok, true);
 });

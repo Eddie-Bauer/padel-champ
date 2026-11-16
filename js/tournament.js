@@ -264,3 +264,76 @@ export const finalPlacing=({final,third,semis}={})=>{
   else if(semis)semis.filter(winnerOf).forEach(m=>out.push({place:3,teamId:loserOf(m)}));
   return out;
 };
+
+// ─── Classic: the tournament as a whole ───────────────────────
+
+export const STAGE_LABEL={group:'Gruppenphase',quarter:'Viertelfinal',semi:'Halbfinal',third:'Spiel um Platz 3',final:'Final'};
+// Round number per stage (third place and final are played in the same round).
+const STAGE_RND={group:1,quarter:2,semi:3,third:4,final:4};
+const NEXT_STAGE={quarter:'semi',semi:'final'};
+const stageMatches=(matches,stage)=>matches.filter(m=>m.stage===stage).sort((a,b)=>a.seq-b.seq);
+const planned=(stage,i,a,b)=>({stage,rnd:STAGE_RND[stage],seq:stage==='final'?2:i+1,team1Id:a,team2Id:b});
+
+// The group letters of a tournament, in order.
+export const groupsOf=teams=>[...new Set(teams.map(t=>t.grp).filter(Boolean))].sort();
+// Table of one group of a running tournament.
+export const tableOf=(grp,{config,teams,matches})=>
+  groupTable(teams.filter(t=>t.grp===grp).map(t=>t.id),stageMatches(matches,'group'),((config||{}).tiebreak||{})[grp]||[]);
+
+// What has to be created next. `teams`: [{id, grp}], `matches`: all matches
+// of the event. Returns {add, tied}: `add` are the matches of the next
+// stage (empty while the current one is unfinished or once the final
+// exists); `tied` are the groups where a draw has to settle the order first.
+export const classicNext=({config,teams,matches})=>{
+  const none={add:[],tied:[]};
+  const started=['quarter','semi','final'].some(s=>stageMatches(matches,s).length>0);
+  if(!started){
+    const gm=stageMatches(matches,'group');
+    if(!gm.length||!gm.every(winnerOf))return none;
+    const groups=groupsOf(teams);
+    const tables=groups.map(g=>tableOf(g,{config,teams,matches}));
+    // Only a tie that reaches into the advancing places matters.
+    const tied=groups.filter((g,i)=>tables[i].some(r=>r.tied&&r.rank<=config.advance));
+    if(tied.length)return{add:[],tied};
+    const {stage,pairs}=seedPlayoff(tables.map(t=>t.map(r=>r.id)),config.advance);
+    return{add:pairs.map(([a,b],i)=>planned(stage,i,a,b)),tied:[]};
+  }
+  for(const stage of ['quarter','semi']){
+    const ms=stageMatches(matches,stage);
+    if(!ms.length||stageMatches(matches,NEXT_STAGE[stage]).length)continue;
+    const next=nextPlayoffRound(stage,ms,{thirdPlace:!!config.thirdPlace});
+    if(!next)return none;
+    let i=0;
+    return{add:next.map(n=>planned(n.stage,n.stage==='third'?0:i++,n.team1Id,n.team2Id)),tied:[]};
+  }
+  return none;
+};
+
+// A result may be changed until the stage after it has started.
+export const classicEditable=(match,matches)=>{
+  const has=s=>matches.some(m=>m.stage===s);
+  if(match.stage==='group')return!has('quarter')&&!has('semi')&&!has('final');
+  if(match.stage==='quarter')return!has('semi');
+  if(match.stage==='semi')return!has('final');
+  return true;
+};
+
+// ─── Americano: from stored rows ──────────────────────────────
+
+// Stored teams and matches as results per player, for americanoStandings.
+// The points of a match are kept in the first set fields.
+export const americanoResults=(teams,matches)=>{
+  const pair=id=>{const t=teams.find(x=>x.id===id);return t?[t.player1Id,t.player2Id]:null;};
+  return matches.map(m=>{
+    const team1=pair(m.team1Id),team2=pair(m.team2Id);
+    if(!team1||!team2)return null;
+    const done=m.status==='completed';
+    return{team1,team2,s1:done?m.t1s1:null,s2:done?m.t2s1:null};
+  }).filter(Boolean);
+};
+
+// Who sits out in a round: every participant who is in no team of it.
+export const restingIn=(playerIds,teams,rnd)=>{
+  const playing=new Set(teams.filter(t=>t.rnd===rnd).flatMap(t=>[t.player1Id,t.player2Id]));
+  return playerIds.filter(p=>!playing.has(p));
+};
