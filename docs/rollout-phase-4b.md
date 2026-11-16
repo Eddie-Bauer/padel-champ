@@ -56,6 +56,18 @@ echten Datenbank; Test-Events am Ende mit „Event löschen" entfernen.
 **Zweites Fenster** mit Spieler-Key: Ergebnisse aus dem einen Fenster
 erscheinen im anderen nach spätestens 15 Sekunden.
 
+## 3b. Nachtrag: einstellbare Mindestspiele und Platzierungsspiele
+
+Nötig, auch wenn die Schritte 1 bis 3 schon gemacht sind.
+
+1. SQL Editor → Inhalt von `supabase/sql/04_min_matches.sql` einfügen → **Run**.
+   Erwartet: „Success. No rows returned".
+2. Funktion `api` noch einmal mit dem aktuellen Stand von
+   `supabase/functions/api/index.ts` ersetzen und deployen. „Verify JWT" bleibt aus.
+3. Lokal testen:
+   - **Einstellungen → Wertung:** „Mindestspiele pro Saison" ändern, Seite neu laden: Der Wert ist noch da, und die Rangliste trennt entsprechend.
+   - **Turnier → Modus „2 Gruppen · Platzierungsspiele":** Nach dem letzten Gruppenspiel erscheinen im Reiter „Platzierung" das Final (Erster gegen Erster) und die Spiele um Platz 3, 5 und so weiter. Nach dem Final steht oben der Sieger.
+
 ## 4. Live schalten
 
 Bescheid geben („merge"). Der Branch `phase-4b-tournaments` geht nach `main`.

@@ -1,4 +1,4 @@
-import {calcStandings} from './logic.js';
+import {calcStandings,MIN_MATCHES} from './logic.js';
 import {toRows,fromRows,diffOps} from './sync.js';
 
 export const uid=()=>crypto.randomUUID();
@@ -27,7 +27,7 @@ export const api=async(body)=>{
 
 // ─── Local copy (shown when the server cannot be reached) ─────
 const DATA=['players','seasons','events','evP','teams','matches','byeMap','settings'];
-const emptyData=()=>({players:[],seasons:[],events:[],evP:[],teams:[],matches:[],byeMap:{},settings:{ptsWin:3,ptsLoss:0}});
+const emptyData=()=>({players:[],seasons:[],events:[],evP:[],teams:[],matches:[],byeMap:{},settings:{ptsWin:3,ptsLoss:0,minMatches:MIN_MATCHES}});
 const loadLocal=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveLocal=()=>{try{localStorage.setItem(SK,JSON.stringify(Object.fromEntries(DATA.map(k=>[k,S[k]]))));}catch(e){console.warn('localStorage save failed',e);}};
 
@@ -55,7 +55,9 @@ export const rndDone=(eid,rnd)=>{const rm=matByRnd(eid,rnd);return rm.length>0&&
 export const getEv=()=>S.events.find(e=>e.id===S.selEv);
 
 // ─── Standings for the season on display ─────────────────────
-export const standings=()=>calcStandings(S,displaySeason().id);
+// Matches a player needs in a season to be in the ranking (set by admin).
+export const minMatches=()=>S.settings.minMatches??MIN_MATCHES;
+export const standings=()=>calcStandings(S,displaySeason().id,minMatches());
 
 // ─── Change notification (main.js registers render here) ─────
 const _listeners=[];

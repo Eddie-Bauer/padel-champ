@@ -42,9 +42,9 @@ test('americanoConfig: sensible defaults, clamped to what the player count allow
 });
 
 test('classicConfig: picks an allowed setup, by default the one with semi-finals', () => {
-  assert.deepEqual(classicConfig({}, 4), { groups: 1, advance: 4, playoffSize: 4, sets: 'bo3', thirdPlace: false });
-  assert.deepEqual(classicConfig({ groups: 2, advance: 1, sets: 'one', thirdPlace: true }, 4), { groups: 2, advance: 1, playoffSize: 2, sets: 'one', thirdPlace: false });
-  assert.deepEqual(classicConfig({ groups: 2, advance: 2, thirdPlace: true }, 8), { groups: 2, advance: 2, playoffSize: 4, sets: 'bo3', thirdPlace: true });
+  assert.deepEqual(classicConfig({}, 4), { groups: 1, advance: 4, playoffSize: 4, mode: 'playoff', sets: 'bo3', thirdPlace: false });
+  assert.deepEqual(classicConfig({ groups: 2, advance: 1, sets: 'one', thirdPlace: true }, 4), { groups: 2, advance: 1, playoffSize: 2, mode: 'playoff', sets: 'one', thirdPlace: false });
+  assert.deepEqual(classicConfig({ groups: 2, advance: 2, thirdPlace: true }, 8), { groups: 2, advance: 2, playoffSize: 4, mode: 'playoff', sets: 'bo3', thirdPlace: true });
   assert.deepEqual(classicConfig({ groups: 4, advance: 2 }, 4).groups, 1, 'a setup that does not fit the team count falls back');
   assert.equal(classicConfig({}, 1), null);
 });
@@ -203,6 +203,43 @@ test('Classic: a circle of three is settled by the draw, then the playoff starts
   const final = eventMatches(id).find(m => m.stage === 'final');
   assert.deepEqual([final.team1Id, final.team2Id], ev.config.tiebreak.A.slice(0, 2));
   renders();
+});
+
+test('Classic with placement matches: 1st against 1st, 2nd against 2nd, then the placing', async () => {
+  const id = actions.addEvent('2026-10-07', 'classic');
+  store.S.players.forEach(p => actions.toggleParticipant(id, p.id));
+  actions.drawClassicTeams(id);
+  actions.setEventConfig(id, { groups: 2, mode: 'placement', sets: 'one' });
+  open(id); renders();
+  actions.startClassic(id);
+  assert.equal(store.S.events.find(e => e.id === id).config.mode, 'placement');
+  const groups = eventMatches(id);
+  groups.forEach(m => decide(m, m.team1Id));
+  await tick();
+  const pm = eventMatches(id).filter(m => m.stage === 'place');
+  assert.equal(pm.length, 2);
+  const grp = tid => store.S.teams.find(t => t.id === tid).grp;
+  // Group winners meet each other, runners-up meet each other.
+  assert.deepEqual(pm[0].team1Id && [groups.map(g => g.team1Id).includes(pm[0].team1Id), groups.map(g => g.team1Id).includes(pm[0].team2Id)], [true, true]);
+  for (const m of pm) assert.notEqual(grp(m.team1Id), grp(m.team2Id));
+  store.S.sub = 'playoff'; renders();
+  pm.forEach(m => decide(m, m.team1Id));
+  await tick();
+  assert.equal(eventMatches(id).length, 4);
+  renders();
+  store.S.sub = 'groups'; renders();
+});
+
+test('the minimum number of matches for the ranking can be changed', async () => {
+  assert.equal(store.minMatches(), 10);
+  sent.length = 0;
+  actions.setPoints('minMatches', 6);
+  await tick();
+  assert.equal(store.minMatches(), 6);
+  assert.deepEqual(sent, [{ t: 'settings', a: 'upsert', row: { id: 1, pts_win: 3, pts_loss: 0, min_matches: 6 } }]);
+  assert.doesNotThrow(() => main.setTab('settings'));
+  assert.doesNotThrow(() => main.setTab('standings'));
+  assert.doesNotThrow(() => main.setTab('players'));
 });
 
 test('Start and the + button cope with tournaments', () => {

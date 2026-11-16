@@ -29,6 +29,7 @@ export const eventMatchCard=(ev,match)=>{
   const groupOf=m=>S.teams.find(t=>t.id===m.team1Id)?.grp;
   const label=format==='americano'?'Runde '+match.rnd+' · Platz '+(match.court||match.seq)
     :format==='classic'?(match.stage==='group'?'Gruppe '+groupOf(match)+' · Spiel '+match.seq
+      :match.stage==='place'?(match.seq===1?'Final':'Spiel um Platz '+(2*match.seq-1))
       :match.stage==='semi'||match.stage==='quarter'?STAGE_LABEL[match.stage]+' '+match.seq:STAGE_LABEL[match.stage])
     :null;
   return matchCard(match,open?()=>openScoreSheet(match):null,{label,points:format==='americano'});

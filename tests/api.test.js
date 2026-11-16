@@ -232,3 +232,9 @@ test('checkOps: only known formats and stages', () => {
   for (const stage of [null, 'group', 'quarter', 'semi', 'third', 'final']) assert.equal(checkOps('admin', [m(stage)]).ok, true, String(stage));
   assert.equal(checkOps('admin', [m('warmup')]).status, 400);
 });
+
+test('admin may change the minimum number of matches; the placement stage is known', () => {
+  assert.equal(checkOps('admin', [{ t: 'settings', a: 'upsert', row: { id: 1, pts_win: 3, pts_loss: 0, min_matches: 6 } }]).ok, true);
+  assert.equal(checkOps('player', [{ t: 'settings', a: 'upsert', row: { id: 1, min_matches: 1 } }]).status, 403);
+  assert.equal(checkOps('admin', [{ t: 'matches', a: 'upsert', row: { id: 'm1', stage: 'place' } }]).ok, true);
+});

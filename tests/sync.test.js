@@ -11,7 +11,7 @@ const state = () => ({
   matches: [{ id: 'm1', eid: 'e1', team1Id: 't1', team2Id: 't2', rnd: 1, seq: 1,
     t1s1: 6, t2s1: 4, t1s2: null, t2s2: null, t1s3: null, t2s3: null, winnerTeamId: 't1', status: 'completed', stage: null, court: null }],
   byeMap: { e1: { 1: '2', 2: null } },
-  settings: { ptsWin: 3, ptsLoss: 0 },
+  settings: { ptsWin: 3, ptsLoss: 0, minMatches: 10 },
 });
 const rows = (change) => { const s = state(); change?.(s); return toRows(s); };
 
@@ -21,7 +21,7 @@ test('toRows uses database column names', () => {
   assert.deepEqual(r.events[0], { id: 'e1', season_id: 's1', date: '2026-06-01', name: 'Tag', status: 'active', format: 'padel_day', config: {} });
   assert.deepEqual(r.event_players[0], { event_id: 'e1', player_id: '1' });
   assert.deepEqual(r.bye_map, [{ event_id: 'e1', rnd: 1, player_id: '2' }]);
-  assert.deepEqual(r.settings, [{ id: 1, pts_win: 3, pts_loss: 0 }]);
+  assert.deepEqual(r.settings, [{ id: 1, pts_win: 3, pts_loss: 0, min_matches: 10 }]);
   assert.equal(r.matches[0].winner_team_id, 't1');
 });
 
@@ -32,7 +32,7 @@ test('fromRows(toRows(state)) gives the state back', () => {
 });
 
 test('fromRows falls back to default points when settings are missing', () => {
-  assert.deepEqual(fromRows({ ...toRows(state()), settings: [] }).settings, { ptsWin: 3, ptsLoss: 0 });
+  assert.deepEqual(fromRows({ ...toRows(state()), settings: [] }).settings, { ptsWin: 3, ptsLoss: 0, minMatches: 10 });
 });
 
 test('no change gives no ops', () => {
@@ -69,7 +69,7 @@ test('participants and byes are keyed by their pair of columns', () => {
 
 test('settings change gives one upsert', () => {
   const ops = diffOps(rows(), rows(s => { s.settings.ptsWin = 2; }));
-  assert.deepEqual(ops, [{ t: 'settings', a: 'upsert', row: { id: 1, pts_win: 2, pts_loss: 0 } }]);
+  assert.deepEqual(ops, [{ t: 'settings', a: 'upsert', row: { id: 1, pts_win: 2, pts_loss: 0, min_matches: 10 } }]);
 });
 
 test('upserts come parents first, deletes children first, deletes after upserts', () => {
@@ -126,4 +126,10 @@ test('the rows keep their own copy of the config: changing the state later is st
   const before = toRows(s);
   s.events[0].config.courts = 3;            // changed in place
   assert.equal(diffOps(before, toRows(s)).length, 1);
+});
+
+test('the minimum number of matches travels with the settings; old rows default to 10', () => {
+  assert.equal(toRows({ ...state(), settings: { ptsWin: 3, ptsLoss: 0, minMatches: 6 } }).settings[0].min_matches, 6);
+  assert.equal(fromRows({ ...toRows(state()), settings: [{ id: 1, pts_win: 3, pts_loss: 0 }] }).settings.minMatches, 10);
+  assert.equal(fromRows({ ...toRows(state()), settings: [{ id: 1, pts_win: 3, pts_loss: 0, min_matches: 4 }] }).settings.minMatches, 4);
 });

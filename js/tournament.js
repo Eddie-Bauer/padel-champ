@@ -157,9 +157,12 @@ export const classicOptions=nTeams=>{
     const smallest=Math.floor(nTeams/groups);
     if(smallest<2)continue;
     for(let advance=1;advance<=smallest;advance++){
-      if(PLAYOFF_SIZES.includes(groups*advance))out.push({groups,advance,playoffSize:groups*advance});
+      if(PLAYOFF_SIZES.includes(groups*advance))out.push({groups,advance,playoffSize:groups*advance,mode:'playoff'});
     }
   }
+  // Two groups, then placement matches: every rank against the same rank of
+  // the other group (1st against 1st for the title, 2nd against 2nd, ...).
+  if(Math.floor(nTeams/2)>=2)out.push({groups:2,advance:0,playoffSize:0,mode:'placement'});
   return out;
 };
 
@@ -267,9 +270,9 @@ export const finalPlacing=({final,third,semis}={})=>{
 
 // ─── Classic: the tournament as a whole ───────────────────────
 
-export const STAGE_LABEL={group:'Gruppenphase',quarter:'Viertelfinal',semi:'Halbfinal',third:'Spiel um Platz 3',final:'Final'};
+export const STAGE_LABEL={group:'Gruppenphase',quarter:'Viertelfinal',semi:'Halbfinal',third:'Spiel um Platz 3',final:'Final',place:'Platzierungsspiele'};
 // Round number per stage (third place and final are played in the same round).
-const STAGE_RND={group:1,quarter:2,semi:3,third:4,final:4};
+const STAGE_RND={group:1,quarter:2,semi:3,third:4,final:4,place:2};
 const NEXT_STAGE={quarter:'semi',semi:'final'};
 const stageMatches=(matches,stage)=>matches.filter(m=>m.stage===stage).sort((a,b)=>a.seq-b.seq);
 const planned=(stage,i,a,b)=>({stage,rnd:STAGE_RND[stage],seq:stage==='final'?2:i+1,team1Id:a,team2Id:b});
@@ -286,6 +289,18 @@ export const tableOf=(grp,{config,teams,matches})=>
 // exists); `tied` are the groups where a draw has to settle the order first.
 export const classicNext=({config,teams,matches})=>{
   const none={add:[],tied:[]};
+  if(config.mode==='placement'){
+    if(stageMatches(matches,'place').length)return none;
+    const gm=stageMatches(matches,'group');
+    if(!gm.length||!gm.every(winnerOf))return none;
+    const groups=groupsOf(teams);
+    const tables=groups.map(g=>tableOf(g,{config,teams,matches}));
+    // Every rank decides an opponent, so any tie has to be settled first.
+    const tied=groups.filter((g,i)=>tables[i].some(r=>r.tied));
+    if(tied.length)return{add:[],tied};
+    const [ta,tb]=tables,n=Math.min(ta.length,tb.length);
+    return{add:Array.from({length:n},(_,i)=>({stage:'place',rnd:STAGE_RND.place,seq:i+1,team1Id:ta[i].id,team2Id:tb[i].id})),tied:[]};
+  }
   const started=['quarter','semi','final'].some(s=>stageMatches(matches,s).length>0);
   if(!started){
     const gm=stageMatches(matches,'group');
@@ -312,7 +327,7 @@ export const classicNext=({config,teams,matches})=>{
 // A result may be changed until the stage after it has started.
 export const classicEditable=(match,matches)=>{
   const has=s=>matches.some(m=>m.stage===s);
-  if(match.stage==='group')return!has('quarter')&&!has('semi')&&!has('final');
+  if(match.stage==='group')return!has('quarter')&&!has('semi')&&!has('final')&&!has('place');
   if(match.stage==='quarter')return!has('semi');
   if(match.stage==='semi')return!has('final');
   return true;
@@ -357,6 +372,21 @@ export const americanoConfig=(config,n)=>{
 export const classicConfig=(config,nTeams)=>{
   const c=config||{},options=classicOptions(nTeams);
   if(!options.length)return null;
-  const pick=options.find(o=>o.groups===c.groups&&o.advance===c.advance)||options.find(o=>o.playoffSize===4)||options[0];
+  const pick=(c.mode==='placement'&&options.find(o=>o.mode==='placement'))
+    ||options.find(o=>o.mode==='playoff'&&o.groups===c.groups&&o.advance===c.advance)||options.find(o=>o.playoffSize===4)||options[0];
   return{...pick,sets:c.sets==='one'?'one':'bo3',thirdPlace:!!c.thirdPlace&&pick.playoffSize>=4};
+};
+
+// Places in placement mode: match n decides places 2n-1 and 2n. A team whose
+// rank has no counterpart in the other group (unequal groups) comes last.
+// Only decided matches appear, so the list fills up as results come in.
+export const placementPlacing=({config,teams,matches})=>{
+  const pm=stageMatches(matches,'place');
+  if(!pm.length)return[];
+  const out=[];
+  for(const m of pm)if(winnerOf(m))out.push({place:2*m.seq-1,teamId:winnerOf(m)},{place:2*m.seq,teamId:loserOf(m)});
+  const paired=new Set(pm.flatMap(m=>[m.team1Id,m.team2Id]));
+  let place=2*pm.length;
+  for(const g of groupsOf(teams))for(const r of tableOf(g,{config,teams,matches}))if(!paired.has(r.id))out.push({place:++place,teamId:r.id});
+  return out;
 };

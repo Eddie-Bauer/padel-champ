@@ -26,7 +26,7 @@ const MAX_OPS = 5000;
 const MAX_PROMPT = 20000;
 const MAX_CONFIG = 20000;
 const FORMATS = ["padel_day", "americano", "classic"];
-const STAGES = ["group", "quarter", "semi", "third", "final"];
+const STAGES = ["group", "quarter", "semi", "third", "final", "place"];
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -67,7 +67,7 @@ const COLUMNS = {
   matches: ["id", "event_id", "team1_id", "team2_id", "rnd", "seq",
     "t1s1", "t2s1", "t1s2", "t2s2", "t1s3", "t2s3", "winner_team_id", "status", "stage", "court"],
   bye_map: ["event_id", "rnd", "player_id"],
-  settings: ["id", "pts_win", "pts_loss"],
+  settings: ["id", "pts_win", "pts_loss", "min_matches"],
 };
 
 const KEYS = {

@@ -21,7 +21,7 @@ export const toRows=s=>({
   teams:s.teams.map(t=>({id:t.id,event_id:t.eid,rnd:t.rnd,player1_id:t.player1Id,player2_id:t.player2Id,name:t.name,grp:t.grp??null})),
   matches:s.matches.map(m=>({id:m.id,event_id:m.eid,team1_id:m.team1Id,team2_id:m.team2Id,rnd:m.rnd,seq:m.seq,t1s1:m.t1s1,t2s1:m.t2s1,t1s2:m.t1s2,t2s2:m.t2s2,t1s3:m.t1s3,t2s3:m.t2s3,winner_team_id:m.winnerTeamId,status:m.status,stage:m.stage??null,court:m.court??null})),
   bye_map:Object.entries(s.byeMap||{}).flatMap(([eid,rnds])=>Object.entries(rnds).filter(([,pid])=>pid).map(([rnd,pid])=>({event_id:eid,rnd:parseInt(rnd),player_id:pid}))),
-  settings:[{id:1,pts_win:s.settings.ptsWin,pts_loss:s.settings.ptsLoss||0}],
+  settings:[{id:1,pts_win:s.settings.ptsWin,pts_loss:s.settings.ptsLoss||0,min_matches:s.settings.minMatches??10}],
 });
 
 export const fromRows=r=>{
@@ -36,7 +36,7 @@ export const fromRows=r=>{
     teams:r.teams.map(t=>({id:t.id,eid:t.event_id,rnd:t.rnd,player1Id:t.player1_id,player2Id:t.player2_id,name:t.name,grp:t.grp??null})),
     matches:r.matches.map(m=>({id:m.id,eid:m.event_id,team1Id:m.team1_id,team2Id:m.team2_id,rnd:m.rnd,seq:m.seq,t1s1:m.t1s1,t2s1:m.t2s1,t1s2:m.t1s2,t2s2:m.t2s2,t1s3:m.t1s3,t2s3:m.t2s3,winnerTeamId:m.winner_team_id,status:m.status,stage:m.stage??null,court:m.court??null})),
     byeMap,
-    settings:st.length?{ptsWin:st[0].pts_win,ptsLoss:st[0].pts_loss}:{ptsWin:3,ptsLoss:0},
+    settings:st.length?{ptsWin:st[0].pts_win,ptsLoss:st[0].pts_loss,minMatches:st[0].min_matches??10}:{ptsWin:3,ptsLoss:0,minMatches:10},
   };
 };
 

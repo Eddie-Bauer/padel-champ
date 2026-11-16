@@ -1,8 +1,7 @@
 // Spieler: everyone in the group, with their season line.
 import {h,btn,iconBtn,headline,section,avatar} from '../dom.js';
-import {S,IS_ADMIN,standings} from '../store.js';
+import {S,IS_ADMIN,standings,minMatches} from '../store.js';
 import {addPlayer,setPlayerActive} from '../actions.js';
-import {MIN_MATCHES} from '../logic.js';
 import {openSheet,confirmSheet} from '../sheet.js';
 
 const openNewPlayer=()=>{
@@ -29,7 +28,7 @@ export const renderPlayers=()=>{
   const active=S.players.filter(p=>p.isActive),inactive=S.players.filter(p=>!p.isActive);
   const row=p=>{
     const x=st.find(r=>r.player.id===p.id);
-    const line=x&&x.mp>0?x.pct+'% · '+(x.qualified?'Rang '+x.rank:x.mp+' von '+MIN_MATCHES+' Spielen')+' · '+x.w+' S '+x.l+' N':'Noch keine Spiele';
+    const line=x&&x.mp>0?x.pct+'% · '+(x.qualified?'Rang '+x.rank:x.mp+' von '+minMatches()+' Spielen')+' · '+x.w+' S '+x.l+' N':'Noch keine Spiele';
     return h('div',{class:'app-row'},
       avatar(p),
       h('span',{class:'app-row__text'},h('span',{class:'title-3',text:p.name}),h('span',{class:'body-sm pc-muted pc-num',text:line})),

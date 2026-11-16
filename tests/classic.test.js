@@ -19,10 +19,11 @@ const order = rows => rows.map(r => r.id);
 // ── options ──
 test('classicOptions: only setups whose playoff has 2, 4 or 8 teams', () => {
   const key = o => `${o.groups}g/${o.advance}a/${o.playoffSize}`;
-  assert.deepEqual(classicOptions(4).map(key), ['1g/2a/2', '1g/4a/4', '2g/1a/2', '2g/2a/4']);
-  assert.deepEqual(classicOptions(8).map(key), ['1g/2a/2', '1g/4a/4', '1g/8a/8', '2g/1a/2', '2g/2a/4', '2g/4a/8', '4g/1a/4', '4g/2a/8']);
-  assert.deepEqual(classicOptions(6).map(key), ['1g/2a/2', '1g/4a/4', '2g/1a/2', '2g/2a/4']);
-  assert.deepEqual(classicOptions(3).map(key), ['1g/2a/2']);
+  const playoff = n => classicOptions(n).filter(o => o.mode === 'playoff');
+  assert.deepEqual(playoff(4).map(key), ['1g/2a/2', '1g/4a/4', '2g/1a/2', '2g/2a/4']);
+  assert.deepEqual(playoff(8).map(key), ['1g/2a/2', '1g/4a/4', '1g/8a/8', '2g/1a/2', '2g/2a/4', '2g/4a/8', '4g/1a/4', '4g/2a/8']);
+  assert.deepEqual(playoff(6).map(key), ['1g/2a/2', '1g/4a/4', '2g/1a/2', '2g/2a/4']);
+  assert.deepEqual(playoff(3).map(key), ['1g/2a/2']);
 });
 
 test('classicOptions: too few teams give no setup', () => {
@@ -302,5 +303,87 @@ test('classicEditable: a result can be changed until the next stage has started'
 });
 
 test('STAGE_LABEL names every stage in German', () => {
-  assert.deepEqual(Object.keys(STAGE_LABEL).sort(), ['final', 'group', 'quarter', 'semi', 'third']);
+  assert.deepEqual(Object.keys(STAGE_LABEL).sort(), ['final', 'group', 'place', 'quarter', 'semi', 'third']);
+});
+
+// ── two groups, then placement matches (1st against 1st, 2nd against 2nd, ...) ──
+import { classicConfig, placementPlacing } from '../js/tournament.js';
+
+test('classicOptions: placement mode is offered from four teams on, with exactly two groups', () => {
+  const mode = n => classicOptions(n).filter(o => o.mode === 'placement');
+  assert.deepEqual(mode(4), [{ groups: 2, advance: 0, playoffSize: 0, mode: 'placement' }]);
+  assert.equal(mode(7).length, 1);
+  assert.equal(mode(3).length, 0);
+  assert.ok(classicOptions(8).filter(o => o.mode !== 'placement').every(o => o.mode === 'playoff'));
+});
+
+test('classicConfig: placement mode can be chosen and has no third-place match', () => {
+  const c = classicConfig({ groups: 2, mode: 'placement', thirdPlace: true, sets: 'one' }, 6);
+  assert.deepEqual(c, { groups: 2, advance: 0, playoffSize: 0, mode: 'placement', sets: 'one', thirdPlace: false });
+  assert.equal(classicConfig({ groups: 2, advance: 2 }, 6).mode, 'playoff');
+  assert.equal(classicConfig({ mode: 'placement' }, 3).mode, 'playoff', 'too few teams: falls back');
+});
+
+const placementSetup = () => ({ ...twoGroups(), config: { groups: 2, mode: 'placement' } });
+
+test('placement: after the groups every rank meets the same rank of the other group', () => {
+  const { add, tied } = classicNext(placementSetup());
+  assert.deepEqual(tied, []);
+  assert.deepEqual(add, [
+    { stage: 'place', rnd: 2, seq: 1, team1Id: 'a1', team2Id: 'b1' },
+    { stage: 'place', rnd: 2, seq: 2, team1Id: 'a2', team2Id: 'b2' },
+    { stage: 'place', rnd: 2, seq: 3, team1Id: 'a3', team2Id: 'b3' },
+  ]);
+});
+
+test('placement: nothing follows the placement matches, and nothing is added twice', () => {
+  const t = placementSetup();
+  const pm = store(classicNext(t).add); t.matches.push(...pm);
+  assert.deepEqual(classicNext(t).add, []);
+  pm.forEach(m => win(m, m.team1Id));
+  assert.deepEqual(classicNext(t).add, []);
+});
+
+test('placement: with unequal groups the team without a counterpart has no match', () => {
+  const t = placementSetup();
+  t.teams.push(T('a4', 'A'));
+  t.matches.push(group('a1', 'a4', [[6, 0]], 7), group('a2', 'a4', [[6, 0]], 8), group('a3', 'a4', [[6, 0]], 9));
+  const add = classicNext(t).add;
+  assert.equal(add.length, 3);
+  assert.ok(!add.some(m => m.team1Id === 'a4' || m.team2Id === 'a4'));
+});
+
+test('placement: any tie in a group blocks, because every rank decides an opponent', () => {
+  const t = placementSetup();
+  // Group B becomes a circle; group A stays clear.
+  t.matches[3] = group('b1', 'b2', [[6, 4]], 4); t.matches[4] = group('b3', 'b1', [[6, 4]], 5); t.matches[5] = group('b2', 'b3', [[6, 4]], 6);
+  assert.deepEqual(classicNext(t), { add: [], tied: ['B'] });
+});
+
+test('placement: group results are closed once the placement matches exist', () => {
+  const t = placementSetup();
+  const pm = store(classicNext(t).add); t.matches.push(...pm);
+  assert.equal(classicEditable(t.matches[0], t.matches), false);
+  assert.equal(classicEditable(pm[0], t.matches), true);
+});
+
+test('placementPlacing: winners and losers take the two places their match is about', () => {
+  const t = placementSetup();
+  const pm = store(classicNext(t).add); t.matches.push(...pm);
+  assert.deepEqual(placementPlacing(t), [], 'nothing decided yet');
+  win(pm[0], 'b1'); win(pm[2], 'a3');
+  assert.deepEqual(placementPlacing(t), [
+    { place: 1, teamId: 'b1' }, { place: 2, teamId: 'a1' },
+    { place: 5, teamId: 'a3' }, { place: 6, teamId: 'b3' },
+  ]);
+});
+
+test('placementPlacing: the team without a counterpart is last', () => {
+  const t = placementSetup();
+  t.teams.push(T('a4', 'A'));
+  t.matches.push(group('a1', 'a4', [[6, 0]], 7), group('a2', 'a4', [[6, 0]], 8), group('a3', 'a4', [[6, 0]], 9));
+  const pm = store(classicNext(t).add); t.matches.push(...pm);
+  pm.forEach(m => win(m, m.team1Id));
+  assert.deepEqual(placementPlacing(t).at(-1), { place: 7, teamId: 'a4' });
+  assert.equal(placementPlacing(t).length, 7);
 });

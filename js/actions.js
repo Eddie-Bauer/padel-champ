@@ -179,7 +179,7 @@ export const startClassic=eid=>{
       ids.forEach(id=>{teams.find(t=>t.id===id).grp=grp;});
       groupMatches(ids).forEach(([a,b])=>S.matches.push({id:uid(),eid,team1Id:a,team2Id:b,rnd:1,seq:++seq,stage:'group',court:null,...emptyScore}));
     });
-    ev.config={groups:cfg.groups,advance:cfg.advance,sets:cfg.sets,thirdPlace:cfg.thirdPlace};
+    ev.config={groups:cfg.groups,advance:cfg.advance,mode:cfg.mode,sets:cfg.sets,thirdPlace:cfg.thirdPlace};
     ev.status='active';
   });
 };
@@ -209,7 +209,7 @@ export const setPoints=(key,value)=>mut(()=>{S.settings[key]=value;});
 export const addSeason=(name,startDate,endDate)=>mut(()=>{S.seasons.push({id:uid(),name,startDate,endDate,isActive:false});});
 export const activateSeason=id=>mut(()=>{S.seasons.forEach(x=>{x.isActive=x.id===id;});});
 export const clearGameData=()=>mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};});
-export const clearEverything=()=>mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};S.players=[];S.settings={ptsWin:3,ptsLoss:0};});
+export const clearEverything=()=>mut(()=>{S.events=[];S.evP=[];S.teams=[];S.matches=[];S.byeMap={};S.players=[];S.settings={ptsWin:3,ptsLoss:0,minMatches:10};});
 
 // ─── Exports ──────────────────────────────────────────────────
 const dlFile=(content,filename,mime)=>{

@@ -1,9 +1,8 @@
 // Start: the season leader, and the current Padel Day.
 import {h,btn,iconBtn,headline,section,first,dm} from '../dom.js';
-import {S,IS_PLAYER,activeSeason,curRnd,matByRnd,getMat,standings,notify} from '../store.js';
+import {S,IS_PLAYER,activeSeason,curRnd,matByRnd,getMat,standings,notify,minMatches} from '../store.js';
 import {eventCard,openNewEvent} from './events.js';
 import {FORMAT_LABEL,formatOf,eventMatchCard} from './event-parts.js';
-import {MIN_MATCHES} from '../logic.js';
 
 // The one hero card of the screen: who leads the season, in one big number.
 const leaderHero=st=>{
@@ -12,7 +11,7 @@ const leaderHero=st=>{
   // Before anyone has the minimum, the leader is only provisional.
   const rival=second&&second.mp>0&&second.qualified===lead.qualified?second:null;
   const gap=rival?lead.pct-rival.pct:null;
-  const sub=!lead.qualified?'Vorläufig: Noch niemand hat '+MIN_MATCHES+' Spiele.'
+  const sub=!lead.qualified?'Vorläufig: Noch niemand hat '+minMatches()+' Spiele.'
     :gap===null?'Bisher allein in der Wertung.'
     :gap===0?'Gleiche Siegquote wie '+first(rival.player.name)+'.'
     :gap+(gap===1?' Prozentpunkt':' Prozentpunkte')+' vor '+first(rival.player.name)+'.';

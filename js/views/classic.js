@@ -2,7 +2,7 @@
 import {h,btn} from '../dom.js';
 import {S,IS_PLAYER,getEP,getTeams,getMat,notify} from '../store.js';
 import {setEventConfig,drawClassicTeams,startClassic,drawTiebreak,resetTournament} from '../actions.js';
-import {classicOptions,classicConfig,classicNext,groupsOf,tableOf,finalPlacing,STAGE_LABEL} from '../tournament.js';
+import {classicOptions,classicConfig,classicNext,groupsOf,tableOf,finalPlacing,placementPlacing,STAGE_LABEL} from '../tournament.js';
 import {teamLabel} from './match.js';
 import {openTeamBuilder} from './teambuilder.js';
 import {eventHead,overlineOf,rosterSection,eventSection,eventMatchCard} from './event-parts.js';
@@ -10,7 +10,8 @@ import {segmented,labelled} from './controls.js';
 import {confirmSheet} from '../sheet.js';
 
 const PLAYOFF_WORD={2:'Final',4:'Halbfinal',8:'Viertelfinal'};
-const optionLabel=o=>o.groups+(o.groups===1?' Gruppe':' Gruppen')+' · '+o.advance+' weiter · ab '+PLAYOFF_WORD[o.playoffSize];
+const optionLabel=o=>o.mode==='placement'?'2 Gruppen · Platzierungsspiele'
+  :o.groups+(o.groups===1?' Gruppe':' Gruppen')+' · '+o.advance+' weiter · ab '+PLAYOFF_WORD[o.playoffSize];
 const teamList=teams=>h('div',{class:'pc-card'},teams.map((t,i)=>h('div',{class:'app-row'},
   h('span',{class:'pc-badge pc-badge--plain pc-num',text:t.grp||String(i+1)}),
   h('span',{class:'app-row__text'},h('span',{class:'title-3',text:teamLabel(t)})))));
@@ -41,13 +42,15 @@ const pickSetup=(ev,teams,canEdit)=>{
       h('div',{class:'app-section__head'},h('h2',{class:'pc-overline',text:'Modus'})),
       h('div',{class:'pc-card app-pad app-stack'},
         labelled('Gruppen und Playoff',h('div',{class:'pc-row',role:'group','aria-label':'Gruppen und Playoff'},
-          options.map(o=>h('button',{type:'button',class:'pc-chip app-chip-text','aria-pressed':String(o.groups===cfg.groups&&o.advance===cfg.advance),
-            onclick:()=>setEventConfig(ev.id,{groups:o.groups,advance:o.advance}),text:optionLabel(o)})))),
+          options.map(o=>h('button',{type:'button',class:'pc-chip app-chip-text','aria-pressed':String(o.mode===cfg.mode&&o.groups===cfg.groups&&o.advance===cfg.advance),
+            onclick:()=>setEventConfig(ev.id,{groups:o.groups,advance:o.advance,mode:o.mode}),text:optionLabel(o)})))),
         labelled('Matchlänge',segmented('Matchlänge',[['bo3','2 Gewinnsätze'],['one','1 Satz']],cfg.sets,v=>setEventConfig(ev.id,{sets:v}))),
         cfg.playoffSize>=4&&labelled('Spiel um Platz 3',segmented('Spiel um Platz 3',[[true,'Ja'],[false,'Nein']],cfg.thirdPlace,v=>setEventConfig(ev.id,{thirdPlace:v}))))),
     canEdit&&cfg&&h('div',{class:'app-section'},
       btn('primary','Gruppen auslosen und starten',()=>startClassic(ev.id),{block:true}),
-      h('p',{class:'app-note',text:'In der Gruppe spielt jeder gegen jeden. Das Playoff entsteht von selbst, sobald alle Gruppenspiele ein Ergebnis haben.'})),
+      h('p',{class:'app-note',text:cfg.mode==='placement'
+        ?'In der Gruppe spielt jeder gegen jeden. Danach spielt jeder Gruppenrang gegen denselben Rang der anderen Gruppe: die beiden Ersten um den Sieg, die Zweiten um Platz 3 und so weiter.'
+        :'In der Gruppe spielt jeder gegen jeden. Das Playoff entsteht von selbst, sobald alle Gruppenspiele ein Ergebnis haben.'})),
     !cfg&&h('p',{class:'app-note',text:'Für ein Turnier braucht es mindestens 2 Teams.'}),
   ];
 };
@@ -65,7 +68,7 @@ const groupBlock=(ev,grp,parts,cfg,tiedGroups,canEdit)=>{
       h('table',{class:'pc-standings'},
         h('thead',null,h('tr',null,COLS.map(([abbr,word,cls])=>
           h('th',{class:cls||null,title:word,scope:'col',style:cls==='c-name'?{textAlign:'left'}:null,text:abbr})))),
-        h('tbody',null,rows.map(r=>h('tr',{class:(r.rank===1&&r.played>0&&!r.tied?'is-leader':'')+(r.rank>cfg.advance?' app-unranked':'')||null},
+        h('tbody',null,rows.map(r=>h('tr',{class:(r.rank===1&&r.played>0&&!r.tied?'is-leader':'')+(cfg.mode==='playoff'&&r.rank>cfg.advance?' app-unranked':'')||null},
           h('td',{class:'c-rank'},h('b',{text:String(r.rank)})),
           h('td',{class:'c-name',text:teamLabel(team(r.id))}),
           h('td',{class:'c-opt',text:String(r.played)}),
@@ -78,7 +81,7 @@ const groupBlock=(ev,grp,parts,cfg,tiedGroups,canEdit)=>{
       canEdit&&h('div',{class:'app-actions',style:{marginTop:'var(--space-4)'}},
         btn('primary','Los ziehen',()=>confirmSheet({
           title:'Los ziehen?',
-          text:'Die Reihenfolge der punktgleichen Teams in Gruppe '+grp+' wird ausgelost. Danach beginnt das Playoff.',
+          text:'Die Reihenfolge der punktgleichen Teams in Gruppe '+grp+' wird ausgelost. Danach geht es mit der nächsten Runde weiter.',
           action:'Los ziehen',onConfirm:()=>drawTiebreak(ev.id,grp)}),{icon:'shuffle'}))),
     h('div',{class:'app-list'},ms.map(m=>eventMatchCard(ev,m))));
 };
@@ -86,8 +89,9 @@ const groupBlock=(ev,grp,parts,cfg,tiedGroups,canEdit)=>{
 // ── Running: playoff ──
 const placing=(parts)=>{
   const of=s=>parts.matches.filter(m=>m.stage===s).sort((a,b)=>a.seq-b.seq);
-  const p=finalPlacing({final:of('final')[0],third:of('third')[0],semis:of('semi')});
-  if(!p)return null;
+  const p=parts.config.mode==='placement'?placementPlacing(parts):finalPlacing({final:of('final')[0],third:of('third')[0],semis:of('semi')});
+  // Shown once the winner is known.
+  if(!p||!p.length||p[0].place!==1)return null;
   const label=id=>teamLabel(parts.teams.find(t=>t.id===id));
   return h('div',{class:'pc-hero'},
     h('div',{class:'pc-hero__label',text:'Turniersieger'}),
@@ -95,10 +99,10 @@ const placing=(parts)=>{
     p.slice(1).map(x=>h('div',{class:'pc-hero__muted pc-num',text:x.place+'. '+label(x.teamId)})));
 };
 const playoff=(ev,parts,tiedGroups)=>{
-  const stages=['quarter','semi','third','final'].map(s=>[s,parts.matches.filter(m=>m.stage===s).sort((a,b)=>a.seq-b.seq)]).filter(([,ms])=>ms.length>0);
+  const stages=['place','quarter','semi','third','final'].map(s=>[s,parts.matches.filter(m=>m.stage===s).sort((a,b)=>a.seq-b.seq)]).filter(([,ms])=>ms.length>0);
   if(!stages.length)return h('p',{class:'app-note',style:{marginTop:'var(--space-6)'},
-    text:tiedGroups.length?'Vor dem Playoff muss das Los in Gruppe '+tiedGroups.join(', ')+' entscheiden (Reiter Gruppen).'
-      :'Das Playoff beginnt von selbst, sobald alle Gruppenspiele ein Ergebnis haben.'});
+    text:tiedGroups.length?'Vorher muss das Los in Gruppe '+tiedGroups.join(', ')+' entscheiden (Reiter Gruppen).'
+      :'Es geht von selbst weiter, sobald alle Gruppenspiele ein Ergebnis haben.'});
   return[
     h('div',{class:'app-section'},placing(parts)),
     stages.map(([stage,ms])=>h('section',{class:'app-section'},
@@ -127,9 +131,10 @@ export const renderClassic=ev=>{
     const hasPlayoff=ms.some(m=>m.stage!=='group');
     const sub=S.sub==='groups'||S.sub==='playoff'?S.sub:hasPlayoff?'playoff':'groups';
     body=[
-      segmented('Ansicht',[['groups','Gruppen'],['playoff','Playoff']],sub,v=>{S.sub=v;notify();}),
+      segmented('Ansicht',[['groups','Gruppen'],['playoff',cfg.mode==='placement'?'Platzierung':'Playoff']],sub,v=>{S.sub=v;notify();}),
       sub==='playoff'?playoff(ev,parts,tiedGroups)
-        :[h('p',{class:'app-note',style:{marginTop:'var(--space-4)'},text:'Aus jeder Gruppe '+(cfg.advance===1?'kommt das erste Team':'kommen die ersten '+cfg.advance+' Teams')+' weiter.'}),
+        :[h('p',{class:'app-note',style:{marginTop:'var(--space-4)'},text:cfg.mode==='placement'?'Danach spielt jeder Gruppenrang gegen denselben Rang der anderen Gruppe.'
+          :'Aus jeder Gruppe '+(cfg.advance===1?'kommt das erste Team':'kommen die ersten '+cfg.advance+' Teams')+' weiter.'}),
           groupsOf(teams).map(g=>groupBlock(ev,g,parts,cfg,tiedGroups,canEdit))],
     ];
   }
