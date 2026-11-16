@@ -143,3 +143,124 @@ export const americanoStandings=(playerIds,matches)=>{
   rows.forEach(r=>{r.adjPts=r.played?Math.round((r.pts+r.pts/r.played*(most-r.played))*10)/10:0;});
   return rows.sort((a,b)=>b.adjPts-a.adjPts||b.diff-a.diff||b.wins-a.wins).map((r,i)=>({...r,rank:i+1}));
 };
+
+// ─── Classic: groups, then playoffs ───────────────────────────
+
+const PLAYOFF_SIZES=[2,4,8];
+
+// The setups that can be offered for a number of teams: 1, 2 or 4 groups of
+// at least two, and as many teams advancing per group that the playoff has
+// 2, 4 or 8 teams (so the bracket never needs a bye).
+export const classicOptions=nTeams=>{
+  const out=[];
+  for(const groups of [1,2,4]){
+    const smallest=Math.floor(nTeams/groups);
+    if(smallest<2)continue;
+    for(let advance=1;advance<=smallest;advance++){
+      if(PLAYOFF_SIZES.includes(groups*advance))out.push({groups,advance,playoffSize:groups*advance});
+    }
+  }
+  return out;
+};
+
+// Random groups whose sizes differ by at most one.
+export const drawGroups=(teamIds,groups,rnd=Math.random)=>{
+  const out=Array.from({length:groups},()=>[]);
+  shuf(teamIds,rnd).forEach((id,i)=>out[i%groups].push(id));
+  return out;
+};
+
+// Everyone against everyone inside a group.
+export const groupMatches=teamIds=>roundRobin(teamIds);
+
+const winnerOf=m=>m&&m.status==='completed'&&(m.winnerTeamId===m.team1Id||m.winnerTeamId===m.team2Id)?m.winnerTeamId:null;
+const loserOf=m=>{const w=winnerOf(m);return w?(w===m.team1Id?m.team2Id:m.team1Id):null;};
+const setsOf=m=>[[m.t1s1,m.t2s1],[m.t1s2,m.t2s2],[m.t1s3,m.t2s3]].filter(([a,b])=>a!=null&&b!=null);
+
+// Table of one group. Order: wins, set difference, game difference, then the
+// matches among the teams still level. Teams that are level even then share
+// `tied: true` until `tiebreak` (ids in the order the organiser confirmed)
+// settles them. Matches without a winner are ignored.
+export const groupTable=(teamIds,matches,tiebreak=[])=>{
+  const inGroup=new Set(teamIds);
+  const ms=matches.filter(m=>winnerOf(m)&&inGroup.has(m.team1Id)&&inGroup.has(m.team2Id));
+  const acc=Object.fromEntries(teamIds.map(id=>[id,{id,played:0,wins:0,losses:0,sd:0,gd:0}]));
+  for(const m of ms){
+    const a=acc[m.team1Id],b=acc[m.team2Id],sets=setsOf(m);
+    const s1=sets.filter(([x,y])=>x>y).length,s2=sets.filter(([x,y])=>y>x).length;
+    const g1=sets.reduce((s,[x])=>s+x,0),g2=sets.reduce((s,[,y])=>s+y,0);
+    a.played++;b.played++;
+    if(winnerOf(m)===m.team1Id){a.wins++;b.losses++;}else{b.wins++;a.losses++;}
+    a.sd+=s1-s2;b.sd+=s2-s1;a.gd+=g1-g2;b.gd+=g2-g1;
+  }
+  const level=(a,b)=>a.wins===b.wins&&a.sd===b.sd&&a.gd===b.gd;
+  const sorted=Object.values(acc).sort((a,b)=>b.wins-a.wins||b.sd-a.sd||b.gd-a.gd);
+
+  // Orders a block of level teams by the matches among themselves.
+  const settle=block=>{
+    if(block.length===1)return[{...block[0],tied:false}];
+    const members=new Set(block.map(r=>r.id)),mini=Object.fromEntries(block.map(r=>[r.id,0]));
+    for(const m of ms)if(members.has(m.team1Id)&&members.has(m.team2Id))mini[winnerOf(m)]++;
+    const byMini=[...block].sort((a,b)=>mini[b.id]-mini[a.id]);
+    const parts=[];
+    for(const r of byMini){const last=parts[parts.length-1];if(last&&mini[last[0].id]===mini[r.id])last.push(r);else parts.push([r]);}
+    if(parts.length>1)return parts.flatMap(settle);
+    // Still level: the confirmed draw decides, if it covers all of them.
+    if(block.every(r=>tiebreak.includes(r.id))){
+      return[...block].sort((a,b)=>tiebreak.indexOf(a.id)-tiebreak.indexOf(b.id)).map(r=>({...r,tied:false}));
+    }
+    return block.map(r=>({...r,tied:true}));
+  };
+
+  const out=[];
+  for(let i=0;i<sorted.length;){
+    let j=i+1;while(j<sorted.length&&level(sorted[i],sorted[j]))j++;
+    out.push(...settle(sorted.slice(i,j)));
+    i=j;
+  }
+  return out.map((r,i)=>({...r,rank:i+1,tied:r.tied}));
+};
+
+// First playoff round. `tables`: per group the team ids in table order.
+// Bracket order: the winners of pairs 1 and 2 meet next, then 3 and 4.
+export const seedPlayoff=(tables,advance)=>{
+  const g=tables.length,size=g*advance;
+  if(![1,2,4].includes(g)||!PLAYOFF_SIZES.includes(size))throw new Error('Diese Kombination aus Gruppen und Aufsteigern wird nicht angeboten.');
+  if(tables.some(t=>t.length<advance))throw new Error('Zu wenig Teams in einer Gruppe für '+advance+' Aufsteiger.');
+  const [ga,gb,gc,gd]=tables;
+  const stage={2:'final',4:'semi',8:'quarter'}[size];
+  let pairs;
+  if(g===1){
+    pairs={2:[[ga[0],ga[1]]],4:[[ga[0],ga[3]],[ga[1],ga[2]]],8:[[ga[0],ga[7]],[ga[3],ga[4]],[ga[1],ga[6]],[ga[2],ga[5]]]}[size];
+  }else if(g===2){
+    pairs={2:[[ga[0],gb[0]]],4:[[ga[0],gb[1]],[gb[0],ga[1]]],8:[[ga[0],gb[3]],[gb[1],ga[2]],[gb[0],ga[3]],[ga[1],gb[2]]]}[size];
+  }else{
+    pairs={4:[[ga[0],gb[0]],[gc[0],gd[0]]],8:[[ga[0],gb[1]],[gc[0],gd[1]],[gb[0],ga[1]],[gd[0],gc[1]]]}[size];
+  }
+  return{stage,pairs};
+};
+
+const STAGE_MATCHES={quarter:4,semi:2,final:1};
+
+// The round after `stage`, from its matches in bracket order. Returns null
+// while a match is open or has no winner; [] after the final.
+export const nextPlayoffRound=(stage,matches,{thirdPlace=false}={})=>{
+  if(stage==='final')return[];
+  if(matches.length!==STAGE_MATCHES[stage]||!matches.every(winnerOf))return null;
+  const w=matches.map(winnerOf);
+  if(stage==='quarter')return[{stage:'semi',team1Id:w[0],team2Id:w[1]},{stage:'semi',team1Id:w[2],team2Id:w[3]}];
+  const out=[];
+  if(thirdPlace)out.push({stage:'third',team1Id:loserOf(matches[0]),team2Id:loserOf(matches[1])});
+  out.push({stage:'final',team1Id:w[0],team2Id:w[1]});
+  return out;
+};
+
+// Places 1 to 4 once the final is decided, else null. Without a decided
+// match for third place both semi-final losers are third.
+export const finalPlacing=({final,third,semis}={})=>{
+  if(!winnerOf(final))return null;
+  const out=[{place:1,teamId:winnerOf(final)},{place:2,teamId:loserOf(final)}];
+  if(winnerOf(third))out.push({place:3,teamId:winnerOf(third)},{place:4,teamId:loserOf(third)});
+  else if(semis)semis.filter(winnerOf).forEach(m=>out.push({place:3,teamId:loserOf(m)}));
+  return out;
+};
